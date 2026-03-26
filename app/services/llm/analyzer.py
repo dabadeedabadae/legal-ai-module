@@ -17,27 +17,19 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-PROMPT_TEMPLATE = """Ты юридический помощник в системе правовой информации для осуждённых в учреждениях уголовно-исполнительной системы Республики Казахстан.
+PROMPT_TEMPLATE = """Ты юридический помощник. Отвечай ТОЛЬКО на русском языке. Запрещено использовать китайский, английский или любой другой язык кроме русского.
 
-Тебе предоставлены изменения в законодательном акте:
 Документ: {doc_title}
-Период изменений: {date_old} → {date_new}
+Период: {date_old} → {date_new}
 
-ДОБАВЛЕННЫЙ ТЕКСТ:
+Добавлено в закон:
 {added_text}
 
-УДАЛЁННЫЙ ТЕКСТ:
+Удалено из закона:
 {removed_text}
 
-Ответь строго в формате JSON (без markdown, без пояснений, только JSON):
-{{
-  "summary_ru": "краткое описание изменений на русском (2-3 предложения простым языком)",
-  "affects_sentence": true/false,
-  "affects_rights": true/false,
-  "category": "одно из: амнистия/УДО/права_осуждённых/режим_содержания/нейтральное",
-  "importance": "одно из: высокая/средняя/низкая",
-  "explanation_ru": "объяснение для осуждённого — что это значит для него лично (1-2 предложения)"
-}}"""
+Ответь только JSON на русском языке:
+{{"summary_ru": "что изменилось (2-3 предложения по-русски)", "affects_sentence": false, "affects_rights": false, "category": "нейтральное", "importance": "низкая", "explanation_ru": "что это значит для осуждённого (по-русски)"}}"""
 
 def build_prompt(doc_title: str, date_old: str, date_new: str, diff_data: dict) -> str:
     added = "\n".join(f"+ {t}" for t in diff_data.get("added", [])[:5]) or "нет"
