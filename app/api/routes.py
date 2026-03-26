@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+﻿from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.document import Document, DocumentVersion, DocumentDiff
+from app.services.rag.qa_service import answer_question
 import json
 import os
 
@@ -13,16 +15,18 @@ def verify_api_key(x_api_key: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
 
+class QuestionRequest(BaseModel):
+    question: str
+    user_id: int | None = None
+
 @router.get("/documents")
 async def list_documents(db: AsyncSession = Depends(get_db), _=Depends(verify_api_key)):
-    """Список всех документов"""
     result = await db.execute(select(Document))
     docs = result.scalars().all()
     return [{"id": d.id, "external_id": d.external_id, "title_ru": d.title_ru} for d in docs]
 
 @router.get("/documents/{doc_id}/changes")
 async def get_changes(doc_id: int, db: AsyncSession = Depends(get_db), _=Depends(verify_api_key)):
-    """Последние изменения документа с AI анализом"""
     result = await db.execute(
         select(DocumentDiff)
         .where(DocumentDiff.document_id == doc_id)
@@ -31,7 +35,6 @@ async def get_changes(doc_id: int, db: AsyncSession = Depends(get_db), _=Depends
         .limit(10)
     )
     diffs = result.scalars().all()
-
     changes = []
     for d in diffs:
         v_old = await db.get(DocumentVersion, d.version_old_id)
@@ -49,7 +52,6 @@ async def get_changes(doc_id: int, db: AsyncSession = Depends(get_db), _=Depends
 
 @router.get("/changes/important")
 async def get_important_changes(db: AsyncSession = Depends(get_db), _=Depends(verify_api_key)):
-    """Только важные изменения (влияющие на срок или права)"""
     result = await db.execute(
         select(DocumentDiff)
         .where(DocumentDiff.affects_sentence == True)
@@ -58,3 +60,14 @@ async def get_important_changes(db: AsyncSession = Depends(get_db), _=Depends(ve
     )
     diffs = result.scalars().all()
     return [{"id": d.id, "summary_ru": d.ai_summary_ru} for d in diffs]
+
+@router.post("/ask")
+async def ask_question(request: QuestionRequest, _=Depends(verify_api_key)):
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    answer = await answer_question(request.question)
+    return {
+        "question": request.question,
+        "answer": answer,
+        "user_id": request.user_id,
+    }
