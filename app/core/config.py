@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     laravel_api_key: str
     adilet_base_url: str
     parser_delay_seconds: int = 2
+    groq_api_key: str = ""
+    llm_provider: str = "groq"
 
     class Config:
         env_file = ".env"

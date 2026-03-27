@@ -1,5 +1,5 @@
 ﻿import asyncio
-import ollama
+from app.services.llm.client import chat as llm_chat
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, text
@@ -97,11 +97,7 @@ Relevant статьи из законодательства РК:
 Ответ должен быть понятен человеку без юридического образования."""
 
     # 3. Отправляем в LLM
-    response = ollama.chat(
-        model=OLLAMA_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        options={"temperature": 0.1}
-    )
+    return llm_chat(prompt)
     
     return response["message"]["content"]
 
