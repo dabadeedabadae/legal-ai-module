@@ -116,7 +116,7 @@ async def main():
                 skipped = 0
 
                 # Сохраняем все версии (для теста берём последние 5)
-                for v in versions[-5:]:
+                for v in versions:
                     date = v["date"]
 
                     # Пропускаем если уже есть в БД
