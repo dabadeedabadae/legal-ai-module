@@ -2,7 +2,7 @@
 from app.services.llm.client import chat as llm_chat
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, text
+from sqlalchemy import select
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
@@ -11,23 +11,76 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
-
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-async def search_relevant_articles(session: AsyncSession, question: str, limit: int = 5) -> list[dict]:
-    """Ищем релевантные фрагменты текста по вопросу"""
-    
-    # Берём ключевые слова из вопроса (убираем стоп-слова)
-    keywords = [w for w in question.lower().split() 
-                if len(w) > 3 and w not in {"могу", "может", "можно", "если", "когда", "какой", "какие", "это", "что", "как"}]
-    
+LEGAL_SYNONYMS = {
+    "удо": ["условно-досрочное", "досрочное освобождение", "условно-досрочного"],
+    "права": ["право осужденного", "права осужденных", "вправе", "имеет право"],
+    "жалоба": ["обжаловать", "обращение осужденного", "жалобу"],
+    "адвокат": ["защитник", "юридическая помощь"],
+    "амнистия": ["акт об амнистии", "амнистии", "помилование"],
+    "свидание": ["свидания", "посещение родственников"],
+    "медицина": ["медицинская помощь", "медицинское обслуживание"],
+}
+
+STOP_WORDS = {"могу", "может", "можно", "если", "когда", "какой", "какие",
+              "это", "что", "как", "для", "при", "или", "также", "меня",
+              "мне", "моя", "мой", "себя", "свой", "свою", "буду", "ли"}
+
+QUESTION_CATEGORIES = {
+    "удо": ["удо", "условно-досрочн", "досрочн"],
+    "права": ["права", "право", "обязанност", "обязан", "вправе"],
+    "амнистия": ["амнист", "помилован"],
+    "жалоба": ["жалоб", "обжалова", "апелляц", "обращени"],
+    "адвокат": ["адвокат", "защитник", "юрист"],
+    "свидание": ["свидани", "посещени", "родственник"],
+    "медицина": ["медицин", "врач", "лечени", "больниц"],
+    "перевод": ["перевод", "этапирова", "другое учреждени"],
+}
+
+# Ключевые статьи для каждой категории — ищем их принудительно
+KEY_ARTICLES = {
+    "удо": ["фактического отбытия осужденным", "одной трети срока наказания", "одной второй срока", "двух третей срока"],
+    "права": ["осужденные имеют право на", "осужденный имеет право", "основные права осужденных", "осужденные вправе обращаться"],
+    "жалоба": ["обращения осужденных по поводу решений", "жалобы осужденных", "направляются через администрацию"],
+    "амнистия": ["акт об амнистии", "амнистии в связи", "не распространяется на лиц"],
+}
+
+def normalize_word(word: str) -> str:
+    for ending in ["ию", "ии", "ия", "ой", "ом", "ого", "ому", "ых", "ым", "ами", "ану", "ану"]:
+        if word.endswith(ending) and len(word) > len(ending) + 2:
+            return word[:-len(ending)]
+    return word
+
+def classify_question(question: str) -> str:
+    q_lower = question.lower()
+    for category, keywords in QUESTION_CATEGORIES.items():
+        for kw in keywords:
+            if kw in q_lower:
+                return category
+    return "общее"
+
+def extract_keywords(question: str) -> list[str]:
+    words = [w.lower().strip("?.,!()") for w in question.split()]
+    keywords = [w for w in words if len(w) >= 2 and w not in STOP_WORDS]
+    expanded = list(keywords)
+    for word in keywords:
+        norm_word = normalize_word(word)
+        for key, synonyms in LEGAL_SYNONYMS.items():
+            norm_key = normalize_word(key)
+            if norm_key in norm_word or norm_word in norm_key:
+                expanded.extend(synonyms)
+                break
+    return list(set(expanded))[:15]
+
+async def search_relevant_articles(session: AsyncSession, question: str, limit: int = 6) -> list[dict]:
+    keywords = extract_keywords(question)
+    # Убираем короткие и общие слова которые дают мусор
+    keywords = [k for k in keywords if len(k) > 3 and k not in {"подать", "получить", "иметь", "нужно"}]
     results = []
-    
-    # Для каждого ключевого слова ищем в последних версиях документов
-    for doc_id in [1, 2]:  # УК РК и УИК РК
-        # Берём последнюю версию документа
+
+    for doc_id in [1, 2]:
         version_result = await session.execute(
             select(DocumentVersion)
             .where(DocumentVersion.document_id == doc_id)
@@ -37,85 +90,123 @@ async def search_relevant_articles(session: AsyncSession, question: str, limit: 
         version = version_result.scalar_one_or_none()
         if not version:
             continue
-            
+
         doc = await session.get(Document, doc_id)
         text_content = version.normalized_text
-        
-        # Разбиваем текст на абзацы и ищем релевантные
-        paragraphs = [p.strip() for p in text_content.split('.') if len(p.strip()) > 50]
-        
-        for keyword in keywords[:3]:  # берём топ 3 ключевых слова
-            for para in paragraphs:
-                if keyword in para.lower():
-                    results.append({
-                        "doc_title": doc.title_ru,
-                        "text": para[:500],
-                        "keyword": keyword,
-                    })
-                    if len(results) >= limit:
-                        break
-            if len(results) >= limit:
-                break
-    
-    # Убираем дубликаты
+        sentences = [p.strip() for p in text_content.split(". ") if len(p.strip()) > 80]
+
+        scored = []
+        for sentence in sentences:
+            sentence_lower = sentence.lower()
+            score = sum(1 for kw in keywords if kw in sentence_lower)
+            # Штраф за мусорные совпадения
+            if any(noise in sentence_lower for noise in ["наркотических средств", "психотропных веществ", "таможенн"]):
+                if not any(kw in ["наркотики", "наркотических"] for kw in keywords):
+                    score = 0
+            if score > 0:
+                scored.append((score, sentence[:600]))
+
+        scored.sort(reverse=True)
+        for score, text in scored[:3]:
+            results.append({
+                "doc_title": doc.title_ru,
+                "text": text,
+                "score": score,
+            })
+
     seen = set()
-    unique_results = []
-    for r in results:
+    unique = []
+    for r in sorted(results, key=lambda x: x["score"], reverse=True):
         if r["text"] not in seen:
             seen.add(r["text"])
-            unique_results.append(r)
-    
-    return unique_results[:limit]
+            unique.append(r)
+# Принудительно ищем ключевые статьи для категории
+        category = classify_question(question)
+        if category in KEY_ARTICLES:
+            for doc_id in [1, 2]:
+                version_result = await session.execute(
+                    select(DocumentVersion)
+                    .where(DocumentVersion.document_id == doc_id)
+                    .order_by(DocumentVersion.id.desc())
+                    .limit(1)
+                )
+                version = version_result.scalar_one_or_none()
+                if not version:
+                    continue
+                doc = await session.get(Document, doc_id)
+                sentences = [p.strip() for p in version.normalized_text.split(". ") if len(p.strip()) > 80]
+                for marker in KEY_ARTICLES[category]:
+                    for sentence in sentences:
+                        if marker.lower() in sentence.lower() and sentence not in seen:
+                            seen.add(sentence)
+                            unique.insert(0, {
+                                "doc_title": doc.title_ru,
+                                "text": sentence[:600],
+                                "score": 10,
+                            })
+                            break
+    return unique[:limit]
+
+SYSTEM_PROMPT = """Ты — юридический помощник для осуждённых в учреждениях УИС Республики Казахстан.
+
+СТРОГИЕ ПРАВИЛА:
+1. Отвечай ТОЛЬКО на основе предоставленных статей закона. Не используй знания из памяти.
+2. НИКОГДА не придумывай сроки, статьи, исключения и условия.
+3. Если в источниках нет точного ответа — прямо скажи об этом.
+4. Если для ответа не хватает данных — назови каких именно.
+5. Не обобщай нормы шире чем написано в источнике.
+6. Всегда указывай номер статьи и название закона.
+7. Лучше ответ "недостаточно данных" чем красивый но ложный ответ.
+8. Отвечай ТОЛЬКО на русском языке.
+
+ФОРМАТ ОТВЕТА (строго соблюдай):
+**Краткий ответ:** [1-2 предложения]
+**Основание:** [статья и название закона]
+**Важно знать:** [что зависит от конкретной ситуации]
+**Что сделать:** [практический следующий шаг]"""
 
 async def answer_question(question: str) -> str:
-    """Основная функция RAG — отвечаем на вопрос осуждённого"""
-    
-    async with AsyncSessionLocal() as session:
-        # 1. Ищем релевантные статьи
-        articles = await search_relevant_articles(session, question)
-        
-        if not articles:
-            context = "Релевантные статьи не найдены в базе данных."
-        else:
-            context = "\n\n".join([
-                f"Из {a['doc_title']}:\n{a['text']}"
-                for a in articles
-            ])
-    
-    # 2. Формируем промпт
-    prompt = f"""Ты юридический помощник для осуждённых в учреждениях УИС Республики Казахстан.
-Отвечай ТОЛЬКО на русском языке. Простым и понятным языком.
+    category = classify_question(question)
 
+    async with AsyncSessionLocal() as session:
+        articles = await search_relevant_articles(session, question)
+
+        if not articles or max(a["score"] for a in articles) < 2:
+            return (
+                "**Краткий ответ:** Я не нашёл достаточно точной нормы для уверенного ответа.\n\n"
+                "**Что сделать:** Для получения точного ответа обратитесь к администрации учреждения "
+                "или дежурному юристу. Уточните статью УК по которой осуждены, "
+                "категорию преступления и срок наказания."
+            )
+
+        context = "\n\n".join([
+            f"[{a['doc_title']}]:\n{a['text']}"
+            for a in articles
+        ])
+
+    prompt = f"""{SYSTEM_PROMPT}
+
+Категория вопроса: {category}
 Вопрос осуждённого: {question}
 
-Relevant статьи из законодательства РК:
+Статьи из законодательства РК (используй ТОЛЬКО эти источники):
 {context}
 
-Ответь на вопрос основываясь на приведённых статьях. 
-Если информации недостаточно — скажи об этом честно.
-Не придумывай статьи которых нет в контексте.
-Ответ должен быть понятен человеку без юридического образования."""
+Ответь строго по формату. Если источников недостаточно — честно скажи об этом."""
 
-    # 3. Отправляем в LLM
     return llm_chat(prompt)
-    
-    return response["message"]["content"]
 
 async def main():
-    # Тестируем с реальными вопросами осуждённых
     questions = [
-        "Когда я могу подать на условно-досрочное освобождение?",
+        "Когда я могу подать на УДО?",
         "Какие у меня права как у осуждённого?",
-        "Что такое незаконный оборот наркотиков по казахстанскому закону?",
+        "Могу ли я получить амнистию?",
+        "Как подать жалобу на администрацию?",
     ]
-    
     for q in questions:
         print(f"\n{'='*60}")
-        print(f"❓ Вопрос: {q}")
-        print(f"{'='*60}")
+        print(f"Вопрос: {q}")
         answer = await answer_question(q)
-        print(f"💬 Ответ:\n{answer}")
-        print()
+        print(f"Ответ:\n{answer}")
 
-
-
+asyncio.run(main())
