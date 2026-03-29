@@ -71,3 +71,15 @@ async def ask_question(request: QuestionRequest, _=Depends(verify_api_key)):
         "answer": answer,
         "user_id": request.user_id,
     }
+
+@router.post("/ui/ask", include_in_schema=False)
+async def ask_question_ui(request: QuestionRequest):
+    """Endpoint for the local web UI (no API key required)."""
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    answer = await answer_question(request.question)
+    return {
+        "question": request.question,
+        "answer": answer,
+        "user_id": request.user_id,
+    }
