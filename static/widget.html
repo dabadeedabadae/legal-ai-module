@@ -3,44 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Legal AI</title>
+  <title>AI Chat Widget</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: #e8e8ea;
-      height: 100dvh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    /* ── Shell ── */
-    .shell {
+    /* ── Widget ── */
+    .widget {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .modal {
+      pointer-events: all;
       width: 420px;
       height: 580px;
       background: #fff;
       border-radius: 24px;
+      padding: 24px 28px 22px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.08), 0 2px 10px rgba(0,0,0,0.04);
       display: flex;
       flex-direction: column;
+      gap: 0;
       overflow: hidden;
     }
 
     /* ── Header ── */
-    .shell-header {
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       flex-shrink: 0;
+      margin-bottom: 4px;
+    }
+
+    .header-left {
       display: flex;
       align-items: center;
       gap: 7px;
-      padding: 20px 24px 16px;
     }
 
     .header-icon {
+      color: #3b5bff;
+      font-size: 18px;
+      line-height: 1;
       display: flex;
       align-items: center;
-      flex-shrink: 0;
     }
 
     .header-label {
@@ -50,32 +70,25 @@
       letter-spacing: -0.01em;
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      background: #4caf82;
-      border-radius: 50%;
-      margin-left: auto;
-      flex-shrink: 0;
-    }
-
-    /* ── Chat scroll area ── */
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0 24px 16px;
+    .close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9a9aaa;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 6px;
+      transition: color 0.15s;
       display: flex;
-      flex-direction: column;
-      gap: 14px;
-      scroll-behavior: smooth;
+      align-items: center;
+      justify-content: center;
     }
 
-    #chat::-webkit-scrollbar { width: 3px; }
-    #chat::-webkit-scrollbar-track { background: transparent; }
-    #chat::-webkit-scrollbar-thumb { background: #e0e0e6; border-radius: 3px; }
+    .close-btn:hover { color: #4a4a5a; }
 
-    /* ── Welcome / Idle ── */
-    #welcome {
+    /* ── Hero / Orb Zone ── */
+    .hero {
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -85,7 +98,6 @@
       padding: 8px 0 4px;
     }
 
-    /* Orb */
     .orb-wrap {
       position: relative;
       width: 200px;
@@ -95,6 +107,7 @@
       justify-content: center;
     }
 
+    /* Outer ring */
     .orb-outer {
       position: absolute;
       inset: 0;
@@ -103,6 +116,7 @@
       animation: orbPulse 3s ease-in-out infinite;
     }
 
+    /* Middle ring */
     .orb-mid {
       position: absolute;
       width: 160px;
@@ -112,6 +126,7 @@
       animation: orbPulse 3s ease-in-out infinite 0.3s;
     }
 
+    /* Core blob */
     .orb-core {
       position: relative;
       width: 100px;
@@ -119,6 +134,7 @@
       border-radius: 50%;
       overflow: hidden;
       animation: orbPulse 3s ease-in-out infinite 0.6s;
+      filter: blur(0px);
     }
 
     .orb-core svg {
@@ -142,13 +158,14 @@
       letter-spacing: -0.01em;
     }
 
-    /* Suggestion chips */
+    /* ── Suggestion Chips ── */
     .chips-section {
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
       gap: 10px;
-      width: 100%;
+      margin-bottom: 18px;
     }
 
     .chip {
@@ -183,15 +200,27 @@
 
     .chips-more:hover { color: #5a5a6a; }
 
-    /* ── Messages ── */
+    /* ── Chat Messages (hidden until first message) ── */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-right: 2px;
+      margin-bottom: 16px;
+    }
+
+    .chat-messages::-webkit-scrollbar { width: 3px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #e0e0e6; border-radius: 3px; }
+
     .msg-bubble {
       max-width: 85%;
       padding: 10px 14px;
       border-radius: 14px;
       font-size: 14px;
-      line-height: 1.65;
+      line-height: 1.6;
       word-break: break-word;
-      white-space: pre-wrap;
     }
 
     .msg-bubble.user {
@@ -208,18 +237,12 @@
       border-bottom-left-radius: 4px;
     }
 
-    .msg-bubble.error {
-      background: #fff1f1;
-      color: #c03535;
-    }
-
     .msg-bubble.loading {
       display: flex;
       align-items: center;
+      gap: 4px;
       padding: 12px 16px;
     }
-
-    .dots { display: flex; gap: 4px; }
 
     .dots span {
       display: inline-block;
@@ -229,7 +252,6 @@
       border-radius: 50%;
       animation: dotBounce 1.2s ease-in-out infinite;
     }
-
     .dots span:nth-child(2) { animation-delay: 0.2s; }
     .dots span:nth-child(3) { animation-delay: 0.4s; }
 
@@ -238,13 +260,9 @@
       40%           { transform: translateY(-5px); opacity: 1; }
     }
 
-    /* ── Input footer ── */
-    .input-area {
-      flex-shrink: 0;
-      padding: 0 24px 20px;
-    }
-
+    /* ── Footer / Input ── */
     .input-footer {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -260,7 +278,7 @@
       box-shadow: 0 0 0 3px rgba(59,91,255,0.07);
     }
 
-    textarea {
+    .chat-input {
       flex: 1;
       border: none;
       outline: none;
@@ -275,10 +293,7 @@
       padding: 1px 0;
     }
 
-    textarea::placeholder { color: #b0b0c0; }
-
-    textarea::-webkit-scrollbar { width: 3px; }
-    textarea::-webkit-scrollbar-thumb { background: #e0e0e6; border-radius: 3px; }
+    .chat-input::placeholder { color: #b0b0c0; }
 
     .send-btn {
       width: 34px;
@@ -294,8 +309,8 @@
       transition: background 0.15s, transform 0.1s;
     }
 
-    .send-btn:hover:not(:disabled) { background: #2a4aee; }
-    .send-btn:active:not(:disabled) { transform: scale(0.93); }
+    .send-btn:hover { background: #2a4aee; }
+    .send-btn:active { transform: scale(0.93); }
 
     .send-btn:disabled {
       background: #d8d8e4;
@@ -304,27 +319,38 @@
 
     .send-btn svg { fill: #fff; }
     .send-btn:disabled svg { fill: #a0a0b0; }
+
+    /* ── State toggling ── */
+    .state-idle  .chat-messages  { display: none; }
+    .state-chat  .hero           { display: none; }
+    .state-chat  .chips-section  { display: none; }
   </style>
 </head>
 <body>
 
-<div class="shell">
+<div class="widget">
+  <div class="modal state-idle" id="modal">
 
-  <!-- Header -->
-  <div class="shell-header">
-    <span class="header-icon">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 1 C9 1 9.6 5.4 11.4 7.6 C13.2 9.8 17 9 17 9 C17 9 13.2 8.2 11.4 10.4 C9.6 12.6 9 17 9 17 C9 17 8.4 12.6 6.6 10.4 C4.8 8.2 1 9 1 9 C1 9 4.8 9.8 6.6 7.6 C8.4 5.4 9 1 9 1Z" fill="#3b5bff"/>
-      </svg>
-    </span>
-    <span class="header-label">AI Assist</span>
-    <div class="status-dot" title="Сервис работает"></div>
-  </div>
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-left">
+        <span class="header-icon">
+          <!-- ✦ four-pointed star -->
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 1 C9 1 9.6 5.4 11.4 7.6 C13.2 9.8 17 9 17 9 C17 9 13.2 8.2 11.4 10.4 C9.6 12.6 9 17 9 17 C9 17 8.4 12.6 6.6 10.4 C4.8 8.2 1 9 1 9 C1 9 4.8 9.8 6.6 7.6 C8.4 5.4 9 1 9 1Z" fill="#3b5bff"/>
+          </svg>
+        </span>
+        <span class="header-label">AI Assist</span>
+      </div>
+      <button class="close-btn" onclick="closeWidget()" aria-label="Закрыть">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
 
-  <!-- Chat / Welcome area -->
-  <div id="chat">
-    <div id="welcome">
-      <!-- Orb -->
+    <!-- Hero orb -->
+    <div class="hero">
       <div class="orb-wrap">
         <div class="orb-outer"></div>
         <div class="orb-mid"></div>
@@ -346,50 +372,56 @@
       </div>
 
       <div class="hero-text">
-        Чем могу помочь?<br>
-        <span style="font-size:14px; color:#a0a0b0;">Уголовный и Уголовно-исполнительный кодекс РК</span>
-      </div>
-
-      <!-- Chips -->
-      <div class="chips-section">
-        <button class="chip" onclick="fillQuestion(this)">Что такое условно-досрочное освобождение и кто имеет на него право?</button>
-        <button class="chip" onclick="fillQuestion(this)">Какие права есть у осуждённого на свидание с родственниками?</button>
-        <button class="chip" onclick="fillQuestion(this)">Как подать жалобу на действия администрации учреждения?</button>
-        <button class="chips-more">Показать ещё</button>
+        What do you want to<br>know about Beyond UI?
       </div>
     </div>
-  </div>
 
-  <!-- Input -->
-  <div class="input-area">
+    <!-- Chips -->
+    <div class="chips-section">
+      <button class="chip" onclick="useChip(this)">Show me pricing plans</button>
+      <button class="chip" onclick="useChip(this)">How Beyond UI can help me?</button>
+      <button class="chip" onclick="useChip(this)">Tell me more about Beyond UI components?</button>
+      <button class="chips-more">Show more</button>
+    </div>
+
+    <!-- Chat messages (shown after first send) -->
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <!-- Input footer -->
     <div class="input-footer">
       <textarea
-        id="input"
-        placeholder="Введите вопрос по законодательству РК..."
+        id="chatInput"
+        class="chat-input"
+        placeholder="Ask me anything..."
         rows="1"
         onkeydown="handleKey(event)"
-        oninput="onInput(this)"
+        oninput="autoResize(this)"
       ></textarea>
-      <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Отправить" disabled>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send" disabled>
         <svg width="14" height="14" viewBox="0 0 24 24">
           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
         </svg>
       </button>
     </div>
-  </div>
 
+  </div>
 </div>
 
 <script>
-  const chat    = document.getElementById('chat');
-  const input   = document.getElementById('input');
-  const sendBtn = document.getElementById('sendBtn');
+  const modal       = document.getElementById('modal');
+  const chatInput   = document.getElementById('chatInput');
+  const sendBtn     = document.getElementById('sendBtn');
+  const chatMessages= document.getElementById('chatMessages');
   let isLoading = false;
 
-  function onInput(el) {
+  /* Enable/disable send button based on input */
+  chatInput.addEventListener('input', () => {
+    sendBtn.disabled = !chatInput.value.trim();
+  });
+
+  function autoResize(el) {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-    sendBtn.disabled = !el.value.trim();
   }
 
   function handleKey(e) {
@@ -399,19 +431,23 @@
     }
   }
 
-  function fillQuestion(btn) {
-    input.value = btn.textContent.trim();
-    onInput(input);
-    input.focus();
+  function useChip(btn) {
+    chatInput.value = btn.textContent.trim();
+    chatInput.dispatchEvent(new Event('input'));
+    chatInput.focus();
   }
 
-  function removeWelcome() {
-    const w = document.getElementById('welcome');
-    if (w) w.remove();
+  function closeWidget() {
+    modal.style.display = 'none';
+  }
+
+  function switchToChat() {
+    modal.classList.remove('state-idle');
+    modal.classList.add('state-chat');
   }
 
   function appendBubble(role, text, extra) {
-    removeWelcome();
+    if (modal.classList.contains('state-idle')) switchToChat();
 
     const bubble = document.createElement('div');
     bubble.className = `msg-bubble ${role}${extra ? ' ' + extra : ''}`;
@@ -422,19 +458,19 @@
       bubble.textContent = text;
     }
 
-    chat.appendChild(bubble);
-    chat.scrollTop = chat.scrollHeight;
+    chatMessages.appendChild(bubble);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
     return bubble;
   }
 
   async function sendMessage() {
-    const question = input.value.trim();
+    const question = chatInput.value.trim();
     if (!question || isLoading) return;
 
     isLoading = true;
     sendBtn.disabled = true;
-    input.value = '';
-    input.style.height = 'auto';
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
 
     appendBubble('user', question);
     const loader = appendBubble('bot', '', 'loading');
@@ -448,21 +484,21 @@
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Ошибка ${res.status}`);
+        throw new Error(err.detail || `Error ${res.status}`);
       }
 
       const data = await res.json();
       loader.classList.remove('loading');
-      loader.textContent = data.answer || '(Пустой ответ)';
+      loader.textContent = data.answer || '(Empty response)';
     } catch (e) {
       loader.classList.remove('loading');
-      loader.classList.add('error');
-      loader.textContent = e.message || 'Не удалось получить ответ. Проверьте, что сервис запущен.';
+      loader.style.color = '#e05555';
+      loader.textContent = e.message || 'Could not get a response.';
     }
 
-    chat.scrollTop = chat.scrollHeight;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
     isLoading = false;
-    input.focus();
+    chatInput.focus();
   }
 </script>
 </body>
