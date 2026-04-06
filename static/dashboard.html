@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal AI — Мониторинг агентов</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fa; color: #1a1a1a; }
+.header { background: white; border-bottom: 1px solid #e5e7eb; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6b7280; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.metric { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+.metric-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+.metric-value { font-size: 24px; font-weight: 600; color: #111; }
+.panel { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.panel-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #374151; }
+.ask-row { display: flex; gap: 10px; margin-bottom: 24px; }
+.ask-row input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
+.ask-row input:focus { border-color: #6366f1; }
+.ask-row button { padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500; }
+.ask-row button:hover { background: #4f46e5; }
+.ask-row button:disabled { background: #9ca3af; cursor: not-allowed; }
+.agents-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.agent-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; transition: all 0.3s; }
+.agent-card.pending { background: #f9fafb; }
+.agent-card.active { background: #eff6ff; border-color: #93c5fd; }
+.agent-card.done { background: #f0fdf4; border-color: #86efac; }
+.agent-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 8px; }
+.agent-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.agent-desc { font-size: 11px; color: #6b7280; margin-bottom: 8px; }
+.agent-status { font-size: 12px; font-weight: 500; }
+.agent-time { font-size: 11px; color: #6b7280; margin-top: 4px; }
+.agent-output { font-size: 11px; color: #374151; margin-top: 6px; background: white; border-radius: 4px; padding: 6px 8px; border: 1px solid #e5e7eb; max-height: 60px; overflow: hidden; line-height: 1.5; }
+.log { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+.log-line { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid #f3f4f6; }
+.log-time { color: #9ca3af; min-width: 55px; }
+.log-agent { font-weight: 600; min-width: 100px; }
+.log-msg { color: #374151; }
+.answer-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 14px; font-size: 14px; line-height: 1.7; color: #166534; margin-top: 12px; }
+.keys-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+.key-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+.key-label { font-size: 11px; color: #6b7280; margin-bottom: 6px; }
+.key-bar-bg { height: 4px; background: #f3f4f6; border-radius: 2px; margin: 4px 0; }
+.key-bar { height: 4px; border-radius: 2px; transition: width 0.5s; }
+.key-stats { display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Legal AI — Мониторинг агентов</h1>
+  <div class="status"><div class="dot"></div><span id="conn-status">Подключение...</span></div>
+</div>
+
+<div class="main">
+  <div class="ask-row">
+    <input type="text" id="question-input" placeholder="Введите вопрос осуждённого..." value="Когда я могу подать на УДО?">
+    <button id="ask-btn" onclick="askQuestion()">Отправить</button>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Вопросов обработано</div><div class="metric-value" id="m-total">0</div></div>
+    <div class="metric"><div class="metric-label">Среднее время</div><div class="metric-value" id="m-avg">—</div></div>
+    <div class="metric"><div class="metric-label">Токенов использовано</div><div class="metric-value" id="m-tokens">0</div></div>
+    <div class="metric"><div class="metric-label">Активных запросов</div><div class="metric-value" id="m-active">0</div></div>
+  </div>
+
+  <div class="keys-row">
+    <div class="key-card">
+      <div class="key-label">Groq ключ 1 — Классификатор + Упроститель</div>
+      <div class="key-bar-bg"><div class="key-bar" id="bar1" style="width:0%;background:#7c3aed;"></div></div>
+      <div class="key-stats"><span id="k1">0 токенов</span><span>100K / день</span></div>
+    </div>
+    <div class="key-card">
+      <div class="key-label">Groq ключ 2 — Поисковик + Юрист</div>
+      <div class="key-bar-bg"><div class="key-bar" id="bar2" style="width:0%;background:#0369a1;"></div></div>
+      <div class="key-stats"><span id="k2">0 токенов</span><span>100K / день</span></div>
+    </div>
+    <div class="key-card">
+      <div class="key-label">Groq ключ 3 — Резервный</div>
+      <div class="key-bar-bg"><div class="key-bar" id="bar3" style="width:0%;background:#15803d;"></div></div>
+      <div class="key-stats"><span id="k3">0 токенов</span><span>100K / день</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Агенты</div>
+    <div class="agents-grid">
+      <div class="agent-card pending" id="card-classifier">
+        <div class="agent-icon" style="background:#f3e8ff;">🔍</div>
+        <div class="agent-name" style="color:#7c3aed;">Классификатор</div>
+        <div class="agent-desc">Определяет тему вопроса</div>
+        <div class="agent-status" id="st-classifier" style="color:#9ca3af;">ожидание</div>
+        <div class="agent-time" id="tm-classifier"></div>
+        <div class="agent-output" id="out-classifier" style="display:none;"></div>
+      </div>
+      <div class="agent-card pending" id="card-searcher">
+        <div class="agent-icon" style="background:#dbeafe;">📚</div>
+        <div class="agent-name" style="color:#0369a1;">Поисковик</div>
+        <div class="agent-desc">Находит статьи закона</div>
+        <div class="agent-status" id="st-searcher" style="color:#9ca3af;">ожидание</div>
+        <div class="agent-time" id="tm-searcher"></div>
+        <div class="agent-output" id="out-searcher" style="display:none;"></div>
+      </div>
+      <div class="agent-card pending" id="card-lawyer">
+        <div class="agent-icon" style="background:#fef3c7;">⚖️</div>
+        <div class="agent-name" style="color:#b45309;">Юрист</div>
+        <div class="agent-desc">Формулирует точный ответ</div>
+        <div class="agent-status" id="st-lawyer" style="color:#9ca3af;">ожидание</div>
+        <div class="agent-time" id="tm-lawyer"></div>
+        <div class="agent-output" id="out-lawyer" style="display:none;"></div>
+      </div>
+      <div class="agent-card pending" id="card-simplifier">
+        <div class="agent-icon" style="background:#dcfce7;">💬</div>
+        <div class="agent-name" style="color:#15803d;">Упроститель</div>
+        <div class="agent-desc">Переводит на простой язык</div>
+        <div class="agent-status" id="st-simplifier" style="color:#9ca3af;">ожидание</div>
+        <div class="agent-time" id="tm-simplifier"></div>
+        <div class="agent-output" id="out-simplifier" style="display:none;"></div>
+      </div>
+    </div>
+    <div id="final-answer" style="display:none;"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Лог агентов</div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+let ws, totalQ=0, totalTokens=0, times=[], k1t=0, k2t=0;
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws/ask`);
+  ws.onopen = () => document.getElementById("conn-status").textContent = "Подключено";
+  ws.onclose = () => { document.getElementById("conn-status").textContent = "Отключено"; setTimeout(connect, 3000); };
+  ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+}
+
+function now() {
+  const d = new Date();
+  return d.toTimeString().slice(0,8);
+}
+
+function addLog(agent, color, msg) {
+  const log = document.getElementById("log");
+  log.innerHTML += `<div class="log-line"><span class="log-time">${now()}</span><span class="log-agent" style="color:${color}">${agent}</span><span class="log-msg">${msg}</span></div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function setAgent(id, state, status, time, output) {
+  const card = document.getElementById("card-"+id);
+  const st = document.getElementById("st-"+id);
+  const tm = document.getElementById("tm-"+id);
+  const out = document.getElementById("out-"+id);
+  card.className = "agent-card " + state;
+  st.textContent = status;
+  if (time) tm.textContent = time + "s";
+  if (output) { out.style.display = "block"; out.textContent = output.slice(0,100); }
+}
+
+const colors = { classifier:"#7c3aed", searcher:"#0369a1", lawyer:"#b45309", simplifier:"#15803d" };
+const names = { classifier:"Классификатор", searcher:"Поисковик", lawyer:"Юрист", simplifier:"Упроститель" };
+
+function handleEvent(data) {
+  if (data.error) { addLog("Система", "#ef4444", data.error); return; }
+
+  if (data.agent) {
+    const c = colors[data.agent];
+    const n = names[data.agent];
+    if (data.status === "started") {
+      setAgent(data.agent, "active", "работает...", null, null);
+      addLog(n, c, "Начинаю работу...");
+    } else if (data.status === "done") {
+      const d = data.data;
+      const out = d.category || d.articles || d.answer || "";
+      setAgent(data.agent, "done", "готово ✓", d.time, out);
+      addLog(n, c, `Завершено за ${d.time}s, токенов: ${d.tokens}`);
+      if (data.agent === "classifier" || data.agent === "simplifier") { k1t += d.tokens; }
+      else { k2t += d.tokens; }
+      updateKeys();
+    }
+  }
+
+  if (data.type === "complete") {
+    const r = data.result;
+    totalQ++; totalTokens += r.total_tokens; times.push(r.total_time);
+    document.getElementById("m-total").textContent = totalQ;
+    document.getElementById("m-tokens").textContent = totalTokens.toLocaleString();
+    document.getElementById("m-avg").textContent = (times.reduce((a,b)=>a+b,0)/times.length).toFixed(1)+"s";
+    document.getElementById("m-active").textContent = 0;
+    document.getElementById("ask-btn").disabled = false;
+    document.getElementById("ask-btn").textContent = "Отправить";
+
+    const fa = document.getElementById("final-answer");
+    fa.style.display = "block";
+    fa.innerHTML = `<div class="answer-box"><strong>Итоговый ответ:</strong><br>${r.final_answer}</div>`;
+    addLog("Система", "#22c55e", `Готово за ${r.total_time}s, всего токенов: ${r.total_tokens}`);
+  }
+}
+
+function updateKeys() {
+  document.getElementById("k1").textContent = k1t.toLocaleString() + " токенов";
+  document.getElementById("k2").textContent = k2t.toLocaleString() + " токенов";
+  document.getElementById("bar1").style.width = Math.min(100, k1t/1000).toFixed(1)+"%";
+  document.getElementById("bar2").style.width = Math.min(100, k2t/1000).toFixed(1)+"%";
+}
+
+function resetAgents() {
+  ["classifier","searcher","lawyer","simplifier"].forEach(id => {
+    setAgent(id, "pending", "ожидание", null, null);
+    document.getElementById("out-"+id).style.display = "none";
+  });
+  document.getElementById("final-answer").style.display = "none";
+  document.getElementById("log").innerHTML = "";
+}
+
+function askQuestion() {
+  const q = document.getElementById("question-input").value.trim();
+  if (!q || !ws) return;
+  resetAgents();
+  document.getElementById("ask-btn").disabled = true;
+  document.getElementById("ask-btn").textContent = "Обработка...";
+  document.getElementById("m-active").textContent = 1;
+  ws.send(JSON.stringify({ question: q }));
+}
+
+document.getElementById("question-input").addEventListener("keypress", e => {
+  if (e.key === "Enter") askQuestion();
+});
+
+connect();
+</script>
+</body>
+</html>

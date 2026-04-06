@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     adilet_base_url: str
     parser_delay_seconds: int = 2
     groq_api_key: str = ""
+    groq_api_key_2: str = ""
+    groq_api_key_3: str = ""
+    openai_api_key: str = ""
+    openai_api_key_2: str = ""
+    openai_api_key_3: str = ""
     llm_provider: str = "groq"
 
     class Config:
