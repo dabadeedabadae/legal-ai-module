@@ -183,20 +183,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 <!-- Десктоп сайдбар -->
 <nav class="nav">
   <div class="nav-logo">
-    <div class="nav-logo-title">⚖️ Legal AI</div>
+    <div class="nav-logo-title">Legal AI</div>
     <div class="nav-logo-sub">Панель администратора</div>
   </div>
   <div class="nav-items">
     <div class="nav-item" id="nav-laws" onclick="switchTab('laws')">
-      <span class="nav-item-icon">📚</span> Данные о законах
+      <span class="nav-item-icon"></span> Данные о законах
     </div>
     <div class="nav-item" id="nav-dashboard" onclick="switchTab('dashboard')">
-      <span class="nav-item-icon">📊</span> Дашборд запросов
+      <span class="nav-item-icon"></span> Дашборд запросов
     </div>
   </div>
   <div class="nav-footer">
-    <a href="/dashboard" class="nav-link"><span>🤖</span> Задать вопрос</a>
-    <a href="/" class="nav-link"><span>🏠</span> Главная</a>
+    <a href="/dashboard" class="nav-link"><span></span> Задать вопрос</a>
+    <a href="/" class="nav-link"><span></span> Главная</a>
   </div>
 </nav>
 
@@ -264,10 +264,10 @@ let selectedId = null;
 const isMobile = () => window.innerWidth <= 768;
 
 const agentMeta = {
-  "Классификатор": { icon: "🔍", color: "#7c3aed", bg: "#f3e8ff" },
-  "Поисковик":     { icon: "📚", color: "#0369a1", bg: "#dbeafe" },
-  "Юрист":         { icon: "⚖️", color: "#b45309", bg: "#fef3c7" },
-  "Упроститель":   { icon: "💬", color: "#15803d", bg: "#dcfce7" },
+  "Классификатор": { icon: "1", color: "#7c3aed", bg: "#f3e8ff" },
+  "Поисковик":     { icon: "2", color: "#0369a1", bg: "#dbeafe" },
+  "Юрист":         { icon: "3", color: "#b45309", bg: "#fef3c7" },
+  "Упроститель":   { icon: "4", color: "#15803d", bg: "#dcfce7" },
 };
 
 function switchTab(tab) {
@@ -396,7 +396,7 @@ function renderDetail(data) {
   const r = data.result;
 
   const pipeline = r.agents.map((agent, i) => {
-    const m = agentMeta[agent.name] || { icon: "🤖", color: "#6b7280", bg: "#f3f4f6" };
+    const m = agentMeta[agent.name] || { icon: "", color: "#6b7280", bg: "#f3f4f6" };
     const arrow = i < r.agents.length - 1 ? `<div class="agent-arrow">↓</div>` : "";
     return `
       <div class="agent-row">
@@ -426,7 +426,7 @@ function renderDetail(data) {
     </div>
 
     <div class="detail-answer">
-      <h3>💬 Итоговый ответ</h3>
+      <h3>Итоговый ответ</h3>
       <div class="detail-answer-text">${esc(r.final_answer).replace(/\n/g,"<br>")}</div>
     </div>
 
