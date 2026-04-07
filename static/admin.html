@@ -8,13 +8,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f1f5f9; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
 
-/* ─── Сайдбар ─────────────────────────────── */
+/* ─── Сайдбар (десктоп) ─── */
 .nav { width: 220px; background: #0f172a; display: flex; flex-direction: column; flex-shrink: 0; }
 .nav-logo { padding: 20px 18px 16px; border-bottom: 1px solid #1e293b; }
-.nav-logo-title { font-size: 14px; font-weight: 700; color: #f8fafc; letter-spacing: 0.3px; }
+.nav-logo-title { font-size: 14px; font-weight: 700; color: #f8fafc; }
 .nav-logo-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
 .nav-items { padding: 10px 8px; flex: 1; }
-.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; color: #94a3b8; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; color: #94a3b8; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; user-select: none; }
 .nav-item:hover { background: #1e293b; color: #e2e8f0; }
 .nav-item.active { background: #6366f1; color: white; }
 .nav-item-icon { font-size: 16px; width: 20px; text-align: center; }
@@ -22,96 +22,165 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .nav-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #64748b; font-size: 12px; text-decoration: none; transition: all 0.15s; }
 .nav-link:hover { background: #1e293b; color: #94a3b8; }
 
-/* ─── Основной контент ────────────────────── */
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+/* ─── Основной контент ─── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .topbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .topbar-title { font-size: 15px; font-weight: 700; color: #0f172a; }
 .topbar-meta { font-size: 12px; color: #94a3b8; }
 .content { flex: 1; overflow: hidden; display: flex; }
+.refresh-btn { padding: 6px 14px; background: #6366f1; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.refresh-btn:hover { background: #4f46e5; }
 
-/* ─── Вкладка: Законы ─────────────────────── */
-#tab-laws { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+/* ─── Вкладка: Законы ─── */
+#tab-laws { flex: 1; overflow-y: auto; padding: 20px; display: none; }
 #tab-laws.visible { display: block; }
-
-.laws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.law-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
-.law-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.laws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.law-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; }
+.law-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 .law-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: #ede9fe; color: #6d28d9; text-transform: uppercase; flex-shrink: 0; margin-left: 8px; }
 .law-title { font-size: 13px; font-weight: 600; color: #0f172a; line-height: 1.4; }
-.law-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.law-stat { background: #f8fafc; border-radius: 8px; padding: 10px 12px; }
-.law-stat-val { font-size: 16px; font-weight: 700; color: #0f172a; }
+.law-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.law-stat { background: #f8fafc; border-radius: 8px; padding: 9px 11px; }
+.law-stat-val { font-size: 15px; font-weight: 700; color: #0f172a; }
 .law-stat-lbl { font-size: 10px; color: #94a3b8; margin-top: 2px; }
-.law-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.law-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .law-date { font-size: 11px; color: #94a3b8; }
 .law-link { font-size: 11px; color: #6366f1; text-decoration: none; }
 .law-link:hover { text-decoration: underline; }
+.db-error { background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px; padding: 18px; color: #92400e; font-size: 13px; line-height: 1.6; }
 
-.db-error { background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px; padding: 20px; color: #92400e; font-size: 13px; line-height: 1.6; }
-
-/* ─── Вкладка: Дашборд ────────────────────── */
+/* ─── Вкладка: Дашборд ─── */
 #tab-dashboard { flex: 1; overflow: hidden; display: none; }
 #tab-dashboard.visible { display: flex; }
 
-/* Список запросов */
-.req-panel { width: 380px; flex-shrink: 0; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
-.req-panel-top { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
-.req-panel-stats { display: flex; gap: 0; margin-bottom: 10px; }
+.req-panel { width: 360px; flex-shrink: 0; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+.req-panel-top { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+.req-panel-stats { display: flex; margin-bottom: 10px; }
 .rp-stat { flex: 1; text-align: center; }
 .rp-stat-val { font-size: 18px; font-weight: 700; color: #0f172a; }
 .rp-stat-lbl { font-size: 10px; color: #94a3b8; }
 .req-search { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; background: #f8fafc; }
 .req-search:focus { border-color: #6366f1; background: white; }
 .req-list { flex: 1; overflow-y: auto; }
-.req-item { padding: 14px 16px; border-bottom: 1px solid #f8fafc; cursor: pointer; transition: background 0.12s; }
+.req-item { padding: 13px 14px; border-bottom: 1px solid #f8fafc; cursor: pointer; transition: background 0.12s; }
 .req-item:hover { background: #f8fafc; }
 .req-item.active { background: #eef2ff; border-left: 3px solid #6366f1; }
-.req-q { font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.req-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.req-q { font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.req-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .req-time-badge { font-size: 10px; color: #94a3b8; }
 .req-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; }
 .badge-db { background: #dcfce7; color: #15803d; }
 .badge-nodb { background: #fef3c7; color: #d97706; }
-.req-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+.req-empty { padding: 40px 16px; text-align: center; color: #94a3b8; font-size: 13px; }
 
-/* Детали запроса */
-.detail-panel { flex: 1; overflow-y: auto; padding: 20px 24px; }
+/* Детали */
+.detail-panel { flex: 1; overflow-y: auto; padding: 18px 20px; }
 .detail-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #94a3b8; gap: 10px; }
-.detail-placeholder-icon { font-size: 40px; }
-
-/* Пайплайн */
-.pipeline-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 12px; }
-.pipeline { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-.agent-row { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-.agent-row-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
-.agent-row-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
-.agent-row-info { flex: 1; }
-.agent-row-name { font-size: 13px; font-weight: 600; }
-.agent-row-stats { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-.agent-row-body { padding: 0 16px 14px 62px; font-size: 12px; color: #374151; line-height: 1.6; background: #fafafa; border-top: 1px solid #f1f5f9; padding-top: 10px; }
-
-/* Стрелка между агентами */
-.agent-arrow { text-align: center; color: #cbd5e1; font-size: 18px; margin: -4px 0; }
-
-/* Метрики и итог */
-.detail-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-.dm-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+.detail-placeholder-icon { font-size: 36px; }
+.detail-q-header { margin-bottom: 14px; }
+.detail-q-text { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 4px; line-height: 1.4; }
+.detail-q-meta { font-size: 11px; color: #94a3b8; }
+.detail-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.dm-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; text-align: center; }
 .dm-val { font-size: 20px; font-weight: 700; color: #0f172a; }
 .dm-lbl { font-size: 11px; color: #94a3b8; margin-top: 3px; }
-.detail-answer { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
-.detail-answer h3 { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 10px; }
+.detail-answer { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.detail-answer h3 { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
 .detail-answer-text { font-size: 14px; line-height: 1.75; color: #1e293b; }
-.detail-q-header { margin-bottom: 16px; }
-.detail-q-text { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
-.detail-q-meta { font-size: 11px; color: #94a3b8; }
+.pipeline-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 10px; }
+.pipeline { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.agent-row { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.agent-row-header { display: flex; align-items: center; gap: 12px; padding: 11px 14px; }
+.agent-row-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.agent-row-name { font-size: 13px; font-weight: 600; }
+.agent-row-stats { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.agent-arrow { text-align: center; color: #cbd5e1; font-size: 16px; margin: -3px 0; }
+.agent-row-body { padding: 10px 14px 12px 58px; font-size: 12px; color: #374151; line-height: 1.6; background: #fafafa; border-top: 1px solid #f1f5f9; }
 
-.refresh-btn { padding: 6px 14px; background: #6366f1; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500; }
-.refresh-btn:hover { background: #4f46e5; }
+/* ─── Нижнее меню (мобилка) ─── */
+.mobile-nav { display: none; }
+.back-btn { display: none; }
+
+/* ─── Мобильные стили ─── */
+@media (max-width: 768px) {
+  body { flex-direction: column; }
+
+  /* Скрываем боковой сайдбар */
+  .nav { display: none; }
+
+  .main { flex: 1; height: 0; }
+
+  .topbar { padding: 12px 16px; }
+  .topbar-title { font-size: 14px; }
+  .topbar-meta { display: none; }
+
+  /* Законы: одна колонка */
+  #tab-laws { padding: 12px; }
+  .laws-grid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Дашборд: показываем список или детали (одно за раз) */
+  #tab-dashboard.visible { display: block; position: relative; overflow-y: auto; }
+
+  .req-panel { width: 100%; border-right: none; height: 100%; }
+  .req-panel.hidden-mobile { display: none; }
+
+  .detail-panel { padding: 14px; min-height: 100%; }
+  .detail-panel.hidden-mobile { display: none; }
+
+  .detail-metrics { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .dm-val { font-size: 17px; }
+
+  .agent-row-body { padding-left: 14px; }
+
+  /* Кнопка назад */
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: #6366f1;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 14px;
+  }
+
+  /* Нижнее меню */
+  .mobile-nav {
+    display: flex;
+    background: #0f172a;
+    border-top: 1px solid #1e293b;
+    flex-shrink: 0;
+  }
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 8px;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 500;
+    gap: 4px;
+    transition: color 0.15s;
+    text-decoration: none;
+  }
+  .mobile-nav-item.active { color: #818cf8; }
+  .mobile-nav-item span:first-child { font-size: 20px; }
+}
+
+@media (max-width: 400px) {
+  .detail-metrics { grid-template-columns: repeat(3, 1fr); }
+  .dm-lbl { font-size: 9px; }
+}
 </style>
 </head>
 <body>
 
-<!-- Сайдбар -->
+<!-- Десктоп сайдбар -->
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-title">⚖️ Legal AI</div>
@@ -142,7 +211,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   </div>
 
   <div class="content">
-
     <!-- Вкладка: Законы -->
     <div id="tab-laws">
       <div id="laws-content"><div style="color:#94a3b8;padding:20px;font-size:13px;">Загрузка...</div></div>
@@ -150,11 +218,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
     <!-- Вкладка: Дашборд -->
     <div id="tab-dashboard">
-      <div class="req-panel">
+      <!-- Список запросов -->
+      <div class="req-panel" id="req-panel">
         <div class="req-panel-top">
           <div class="req-panel-stats">
             <div class="rp-stat"><div class="rp-stat-val" id="d-total">0</div><div class="rp-stat-lbl">запросов</div></div>
-            <div class="rp-stat"><div class="rp-stat-val" id="d-avg">—</div><div class="rp-stat-lbl">среднее время</div></div>
+            <div class="rp-stat"><div class="rp-stat-val" id="d-avg">—</div><div class="rp-stat-lbl">ср. время</div></div>
             <div class="rp-stat"><div class="rp-stat-val" id="d-tok">0</div><div class="rp-stat-lbl">токенов</div></div>
           </div>
           <input class="req-search" id="req-search" placeholder="Поиск..." oninput="filterReqs()">
@@ -163,21 +232,36 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="req-empty">Нет запросов.<br>Задайте вопрос на дашборде.</div>
         </div>
       </div>
-      <div class="detail-panel" id="detail-panel">
+
+      <!-- Детали -->
+      <div class="detail-panel hidden-mobile" id="detail-panel">
         <div class="detail-placeholder">
           <div class="detail-placeholder-icon">👈</div>
           <div>Выберите запрос из списка</div>
         </div>
       </div>
     </div>
-
   </div>
+</div>
+
+<!-- Мобильное нижнее меню -->
+<div class="mobile-nav">
+  <div class="mobile-nav-item active" id="mnav-laws" onclick="switchTab('laws')">
+    <span>📚</span><span>Законы</span>
+  </div>
+  <div class="mobile-nav-item" id="mnav-dashboard" onclick="switchTab('dashboard')">
+    <span>📊</span><span>Запросы</span>
+  </div>
+  <a class="mobile-nav-item" href="/dashboard">
+    <span>🤖</span><span>Вопрос</span>
+  </a>
 </div>
 
 <script>
 let currentTab = "laws";
 let allQueries = [];
 let selectedId = null;
+const isMobile = () => window.innerWidth <= 768;
 
 const agentMeta = {
   "Классификатор": { icon: "🔍", color: "#7c3aed", bg: "#f3e8ff" },
@@ -188,12 +272,35 @@ const agentMeta = {
 
 function switchTab(tab) {
   currentTab = tab;
+
   document.getElementById("tab-laws").classList.toggle("visible", tab === "laws");
   document.getElementById("tab-dashboard").classList.toggle("visible", tab === "dashboard");
+
   document.getElementById("nav-laws").classList.toggle("active", tab === "laws");
   document.getElementById("nav-dashboard").classList.toggle("active", tab === "dashboard");
-  document.getElementById("topbar-title").textContent = tab === "laws" ? "Данные о законах" : "Дашборд запросов";
+  document.getElementById("mnav-laws").classList.toggle("active", tab === "laws");
+  document.getElementById("mnav-dashboard").classList.toggle("active", tab === "dashboard");
+
+  const titles = { laws: "Данные о законах", dashboard: "Дашборд запросов" };
+  document.getElementById("topbar-title").textContent = titles[tab];
+
+  // На мобилке при переключении на дашборд — показать список
+  if (tab === "dashboard" && isMobile()) showList();
+
   refreshCurrent();
+}
+
+/* ── Мобильная навигация список ↔ детали ─── */
+function showList() {
+  document.getElementById("req-panel").classList.remove("hidden-mobile");
+  document.getElementById("detail-panel").classList.add("hidden-mobile");
+}
+
+function showDetail() {
+  if (isMobile()) {
+    document.getElementById("req-panel").classList.add("hidden-mobile");
+    document.getElementById("detail-panel").classList.remove("hidden-mobile");
+  }
 }
 
 function refreshCurrent() {
@@ -201,24 +308,19 @@ function refreshCurrent() {
   else loadQueries();
 }
 
-/* ── Законы ─────────────────────────── */
+/* ── Законы ── */
 async function loadLaws() {
   const res = await fetch("/api/admin/laws");
   const data = await res.json();
   const cont = document.getElementById("laws-content");
 
   if (data.error) {
-    cont.innerHTML = `<div class="db-error">
-      <strong>База данных недоступна</strong><br>${data.error}<br><br>
-      Убедитесь что PostgreSQL запущен на порту 5435 и выполните:<br>
-      <code>docker-compose up -d db</code>
-    </div>`;
+    cont.innerHTML = `<div class="db-error"><strong>База данных недоступна</strong><br>${data.error}<br><br>Запустите: <code>docker-compose up -d db</code></div>`;
     document.getElementById("topbar-meta").textContent = "БД недоступна";
     return;
   }
 
-  document.getElementById("topbar-meta").textContent = `${data.length} документов в базе`;
-
+  document.getElementById("topbar-meta").textContent = `${data.length} документов`;
   cont.innerHTML = `<div class="laws-grid">${data.map(law => `
     <div class="law-card">
       <div class="law-card-header">
@@ -226,22 +328,10 @@ async function loadLaws() {
         <div class="law-badge">${esc(law.category)}</div>
       </div>
       <div class="law-stats">
-        <div class="law-stat">
-          <div class="law-stat-val">${law.versions_count}</div>
-          <div class="law-stat-lbl">Версий</div>
-        </div>
-        <div class="law-stat">
-          <div class="law-stat-val">${law.char_count ? (law.char_count / 1000).toFixed(0) + "K" : "—"}</div>
-          <div class="law-stat-lbl">Символов</div>
-        </div>
-        <div class="law-stat">
-          <div class="law-stat-val">${law.last_version_date}</div>
-          <div class="law-stat-lbl">Версия</div>
-        </div>
-        <div class="law-stat">
-          <div class="law-stat-val">${law.last_fetched.split(" ")[0]}</div>
-          <div class="law-stat-lbl">Обновлён</div>
-        </div>
+        <div class="law-stat"><div class="law-stat-val">${law.versions_count}</div><div class="law-stat-lbl">Версий</div></div>
+        <div class="law-stat"><div class="law-stat-val">${law.char_count ? (law.char_count/1000).toFixed(0)+"K" : "—"}</div><div class="law-stat-lbl">Символов</div></div>
+        <div class="law-stat"><div class="law-stat-val">${law.last_version_date}</div><div class="law-stat-lbl">Версия</div></div>
+        <div class="law-stat"><div class="law-stat-val">${law.last_fetched.split(" ")[0]}</div><div class="law-stat-lbl">Обновлён</div></div>
       </div>
       <div class="law-footer">
         <div class="law-date">Добавлен ${law.created_at}</div>
@@ -251,7 +341,7 @@ async function loadLaws() {
   `).join("")}</div>`;
 }
 
-/* ── Запросы ─────────────────────────── */
+/* ── Запросы ── */
 async function loadQueries() {
   const res = await fetch("/api/admin/queries");
   allQueries = await res.json();
@@ -263,10 +353,10 @@ function updateDashStats(qs) {
   document.getElementById("d-total").textContent = qs.length;
   document.getElementById("topbar-meta").textContent = `${qs.length} запросов`;
   if (!qs.length) return;
-  const avg = (qs.reduce((a, q) => a + q.total_time, 0) / qs.length).toFixed(1);
-  const tok = qs.reduce((a, q) => a + q.total_tokens, 0);
-  document.getElementById("d-avg").textContent = avg + "s";
-  document.getElementById("d-tok").textContent = tok >= 1000 ? (tok / 1000).toFixed(1) + "K" : tok;
+  const avg = (qs.reduce((a,q) => a+q.total_time, 0) / qs.length).toFixed(1);
+  const tok = qs.reduce((a,q) => a+q.total_tokens, 0);
+  document.getElementById("d-avg").textContent = avg+"s";
+  document.getElementById("d-tok").textContent = tok >= 1000 ? (tok/1000).toFixed(1)+"K" : tok;
 }
 
 function filterReqs() {
@@ -299,11 +389,11 @@ async function selectQuery(id) {
   const res = await fetch(`/api/admin/queries/${id}`);
   const data = await res.json();
   renderDetail(data);
+  showDetail();
 }
 
 function renderDetail(data) {
   const r = data.result;
-  const maxTok = Math.max(...r.agents.map(a => a.tokens));
 
   const pipeline = r.agents.map((agent, i) => {
     const m = agentMeta[agent.name] || { icon: "🤖", color: "#6b7280", bg: "#f3f4f6" };
@@ -312,31 +402,32 @@ function renderDetail(data) {
       <div class="agent-row">
         <div class="agent-row-header">
           <div class="agent-row-icon" style="background:${m.bg}">${m.icon}</div>
-          <div class="agent-row-info">
+          <div>
             <div class="agent-row-name" style="color:${m.color}">${agent.name}</div>
-            <div class="agent-row-stats">⏱ ${agent.time}s &nbsp;·&nbsp; 🪙 ${agent.tokens} токенов</div>
+            <div class="agent-row-stats">⏱ ${agent.time}s · 🪙 ${agent.tokens} токенов</div>
           </div>
         </div>
-        <div class="agent-row-body">${esc(agent.output).replace(/\n/g, "<br>")}</div>
-      </div>${arrow}
-    `;
+        <div class="agent-row-body">${esc(agent.output).replace(/\n/g,"<br>")}</div>
+      </div>${arrow}`;
   }).join("");
 
   document.getElementById("detail-panel").innerHTML = `
+    <button class="back-btn" onclick="showList()">← Назад</button>
+
     <div class="detail-q-header">
       <div class="detail-q-text">${esc(data.question)}</div>
       <div class="detail-q-meta">${data.created_at} · ${data.db_available ? "контекст из БД" : "без контекста из БД"}</div>
     </div>
 
     <div class="detail-metrics">
-      <div class="dm-card"><div class="dm-val">${r.total_time}s</div><div class="dm-lbl">Общее время</div></div>
+      <div class="dm-card"><div class="dm-val">${r.total_time}s</div><div class="dm-lbl">Время</div></div>
       <div class="dm-card"><div class="dm-val">${r.total_tokens}</div><div class="dm-lbl">Токенов</div></div>
       <div class="dm-card"><div class="dm-val">${r.agents.length}</div><div class="dm-lbl">Агентов</div></div>
     </div>
 
     <div class="detail-answer">
       <h3>💬 Итоговый ответ</h3>
-      <div class="detail-answer-text">${esc(r.final_answer).replace(/\n/g, "<br>")}</div>
+      <div class="detail-answer-text">${esc(r.final_answer).replace(/\n/g,"<br>")}</div>
     </div>
 
     <div class="pipeline-title">Цепочка агентов</div>
@@ -345,10 +436,9 @@ function renderDetail(data) {
 }
 
 function esc(s) {
-  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// Старт
 switchTab("laws");
 setInterval(() => { if (currentTab === "dashboard") loadQueries(); }, 15000);
 </script>
