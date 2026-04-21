@@ -1,10 +1,11 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from app.api.routes import router
+from app.api.routes import router, verify_api_key
 from app.services.rag.multi_agent import run_multi_agent
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from app.core.database import async_session_maker
+from app.core.config import settings
 import json
 import os
 import asyncio
@@ -13,15 +14,22 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
+if not os.getenv("LARAVEL_API_KEY"):
+    raise RuntimeError("LARAVEL_API_KEY не задан в .env")
+
 app = FastAPI(title="Legal AI Module", version="0.2.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(router, prefix="/api/v1")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # История запросов в памяти
 query_history: list[dict] = []
@@ -40,14 +48,35 @@ async def admin():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.2.0"}
+    from sqlalchemy import text
+    import redis.asyncio as aioredis
+
+    checks: dict[str, str] = {}
+
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        checks["postgres"] = "ok"
+    except Exception as e:
+        checks["postgres"] = f"error: {e}"
+
+    try:
+        r = aioredis.from_url(settings.redis_url)
+        await r.ping()
+        await r.aclose()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"error: {e}"
+
+    status = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
+    return {"status": status, "checks": checks, "version": "0.2.0"}
 
 @app.get("/api/admin/laws")
-async def get_laws():
+async def get_laws(_=Depends(verify_api_key)):
     try:
         from sqlalchemy import select, func
         from app.models.document import Document, DocumentVersion
-        async with AsyncSessionLocal() as session:
+        async with async_session_maker() as session:
             docs_result = await session.execute(select(Document).order_by(Document.id))
             docs = docs_result.scalars().all()
             result = []
@@ -79,7 +108,7 @@ async def get_laws():
         return JSONResponse({"error": str(e)}, status_code=503)
 
 @app.get("/api/admin/queries")
-async def get_queries():
+async def get_queries(_=Depends(verify_api_key)):
     return JSONResponse([
         {
             "id": q["id"],
@@ -94,7 +123,7 @@ async def get_queries():
     ])
 
 @app.get("/api/admin/queries/{query_id}")
-async def get_query_detail(query_id: str):
+async def get_query_detail(query_id: str, _=Depends(verify_api_key)):
     for q in query_history:
         if q["id"] == query_id:
             return JSONResponse(q)
@@ -120,7 +149,7 @@ async def websocket_ask(websocket: WebSocket):
             context = ""
             try:
                 from app.services.rag.qa_service import search_relevant_articles
-                async with AsyncSessionLocal() as session:
+                async with async_session_maker() as session:
                     articles = await search_relevant_articles(session, question)
                     context = "\n\n".join([a["text"] for a in articles])
             except Exception as db_err:
@@ -133,12 +162,8 @@ async def websocket_ask(websocket: WebSocket):
             def emit(event):
                 event_queue.put_nowait(event)
 
-            # Запускаем агентов в executor
-            loop = asyncio.get_event_loop()
-            agent_task = loop.run_in_executor(
-                None,
-                lambda: asyncio.run(run_multi_agent(question, context, emit))
-            )
+            # run_multi_agent — async, все LLM-вызовы внутри идут через asyncio.to_thread
+            agent_task = asyncio.create_task(run_multi_agent(question, context, emit))
 
             # Отправляем события пока агенты работают
             while not agent_task.done():

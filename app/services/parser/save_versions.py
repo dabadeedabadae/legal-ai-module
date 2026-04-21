@@ -1,20 +1,19 @@
 import httpx
 import asyncio
 import hashlib
-from datetime import datetime
-from bs4 import BeautifulSoup
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from app.models.document import Document, DocumentVersion
 from dotenv import load_dotenv
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+from datetime import datetime
+from bs4 import BeautifulSoup
+from sqlalchemy import select
+from app.core.database import async_session_maker
+from app.models.document import Document, DocumentVersion
+
 BASE_URL = "https://adilet.zan.kz"
 
 PRIORITY_DOCS = {
@@ -25,9 +24,6 @@ PRIORITY_DOCS = {
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 }
-
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 def normalize_text(text: str) -> str:
     lines = [line.strip() for line in text.splitlines()]
@@ -95,7 +91,7 @@ async def fetch_version_text(client, doc_id: str, date: str) -> str | None:
     return normalize_text(content.get_text(separator="\n"))
 
 async def main():
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
         async with httpx.AsyncClient(
             headers=HEADERS, timeout=30,
             follow_redirects=True, verify=False

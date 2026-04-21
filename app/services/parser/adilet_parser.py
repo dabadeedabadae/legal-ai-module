@@ -118,4 +118,5 @@ async def main():
     for r in all_results:
         print(f"  {r['doc_id']} | {r['date']} | {r['text_length']} символов | hash: {r['hash'][:12]}")
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

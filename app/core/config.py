@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str
@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     openai_api_key_2: str = ""
     openai_api_key_3: str = ""
     llm_provider: str = "groq"
+    db_echo: bool = False
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
 settings = Settings()

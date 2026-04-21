@@ -1,19 +1,15 @@
 import asyncio
 import json
-from diff_match_patch import diff_match_patch
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from app.models.document import Document, DocumentVersion, DocumentDiff
 from dotenv import load_dotenv
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+from diff_match_patch import diff_match_patch
+from sqlalchemy import select
+from app.core.database import async_session_maker
+from app.models.document import Document, DocumentVersion, DocumentDiff
 
 dmp = diff_match_patch()
 
@@ -40,7 +36,7 @@ def compute_diff(text_old: str, text_new: str) -> dict:
     }
 
 async def main():
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
 
         # Берём все документы
         docs_result = await session.execute(select(Document))

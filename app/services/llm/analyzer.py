@@ -1,20 +1,15 @@
 ﻿import asyncio
 import json
-from app.services.llm.client import chat as llm_chat
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from app.models.document import Document, DocumentVersion, DocumentDiff
 from dotenv import load_dotenv
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+from app.services.llm.client import chat as llm_chat
+from sqlalchemy import select
+from app.core.database import async_session_maker
+from app.models.document import Document, DocumentVersion, DocumentDiff
 
 PROMPT_TEMPLATE = """Ты юридический помощник. Отвечай ТОЛЬКО на русском языке. Запрещено использовать китайский, английский или любой другой язык кроме русского.
 
@@ -47,7 +42,7 @@ async def analyze_diff(diff_record, doc_title, date_old, date_new):
         return None
     prompt = build_prompt(doc_title, date_old, date_new, diff_data)
     try:
-        raw = llm_chat(prompt).strip()
+        raw = (await asyncio.to_thread(llm_chat, prompt)).strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
         return json.loads(raw)
     except Exception as e:
@@ -55,7 +50,7 @@ async def analyze_diff(diff_record, doc_title, date_old, date_new):
         return None
 
 async def main():
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
         diffs_result = await session.execute(select(DocumentDiff).where(DocumentDiff.ai_summary_ru == None))
         diffs = diffs_result.scalars().all()
         print(f"Записей для анализа: {len(diffs)}")

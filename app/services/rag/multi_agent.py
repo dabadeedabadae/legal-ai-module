@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from dotenv import load_dotenv
@@ -56,20 +57,24 @@ def call_llm(key_index: int, prompt: str, system: str) -> tuple[str, int, float]
 
 CLASSIFIER_SYSTEM = """Ты классификатор юридических вопросов для системы УИС РК.
 Определи категорию вопроса. Отвечай ТОЛЬКО одним словом из списка:
-удо, права, жалоба, амнистия, адвокат, медицина, свидание, перевод, общее"""
+удо, права, жалоба, амнистия, адвокат, медицина, свидание, перевод, общее
+Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
 
 SEARCHER_SYSTEM = """Ты помощник по поиску в законодательстве РК.
 На основе категории вопроса назови ключевые статьи.
-Формат: "Статья X УК/УИК РК — название". Перечисли 2-3 статьи."""
+Формат: "Статья X УК/УИК РК — название". Перечисли 2-3 статьи.
+Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
 
 LAWYER_SYSTEM = """Ты опытный юрист специализирующийся на уголовном праве РК.
 Дай точный юридический ответ со ссылкой на конкретную статью.
-Не придумывай нормы. Всегда указывай номер статьи."""
+Не придумывай нормы. Всегда указывай номер статьи.
+Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
 
 SIMPLIFIER_SYSTEM = """Ты помощник который объясняет юридические тексты простым языком.
 Перепиши ответ так чтобы его понял человек без образования.
 Сохрани все важные детали и номера статей.
-Максимум 4-5 предложений. Только русский язык."""
+Максимум 4-5 предложений.
+Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
 
 async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
     result = {
@@ -87,26 +92,26 @@ async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
 
     # Агент 1: Классификатор
     emit("classifier", "started")
-    category, t1, s1 = call_llm(0, f"Вопрос: {question}", CLASSIFIER_SYSTEM)
+    category, t1, s1 = await asyncio.to_thread(call_llm, 0, f"Вопрос: {question}", CLASSIFIER_SYSTEM)
     category = category.strip().lower()
     emit("classifier", "done", {"category": category, "tokens": t1, "time": s1})
     result["agents"].append({"name": "Классификатор", "output": category, "tokens": t1, "time": s1})
 
     # Агент 2: Поисковик
     emit("searcher", "started")
-    articles, t2, s2 = call_llm(1, f"Категория: {category}\nВопрос: {question}\nКонтекст: {context[:500]}", SEARCHER_SYSTEM)
+    articles, t2, s2 = await asyncio.to_thread(call_llm, 1, f"Категория: {category}\nВопрос: {question}\nКонтекст: {context[:500]}", SEARCHER_SYSTEM)
     emit("searcher", "done", {"articles": articles, "tokens": t2, "time": s2})
     result["agents"].append({"name": "Поисковик", "output": articles, "tokens": t2, "time": s2})
 
     # Агент 3: Юрист
     emit("lawyer", "started")
-    legal_answer, t3, s3 = call_llm(1, f"Вопрос: {question}\nНайденные статьи: {articles}\nТекст закона: {context[:1000]}", LAWYER_SYSTEM)
+    legal_answer, t3, s3 = await asyncio.to_thread(call_llm, 1, f"Вопрос: {question}\nНайденные статьи: {articles}\nТекст закона: {context[:1000]}", LAWYER_SYSTEM)
     emit("lawyer", "done", {"answer": legal_answer, "tokens": t3, "time": s3})
     result["agents"].append({"name": "Юрист", "output": legal_answer, "tokens": t3, "time": s3})
 
     # Агент 4: Упроститель
     emit("simplifier", "started")
-    simple_answer, t4, s4 = call_llm(0, f"Юридический ответ: {legal_answer}", SIMPLIFIER_SYSTEM)
+    simple_answer, t4, s4 = await asyncio.to_thread(call_llm, 0, f"Юридический ответ: {legal_answer}", SIMPLIFIER_SYSTEM)
     emit("simplifier", "done", {"answer": simple_answer, "tokens": t4, "time": s4})
     result["agents"].append({"name": "Упроститель", "output": simple_answer, "tokens": t4, "time": s4})
 

@@ -1,18 +1,15 @@
 ﻿import asyncio
-from app.services.llm.client import chat as llm_chat
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from app.models.document import Document, DocumentVersion
 from dotenv import load_dotenv
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+from app.services.llm.client import chat as llm_chat
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import async_session_maker
+from app.models.document import Document, DocumentVersion
 
 LEGAL_SYNONYMS = {
     "удо": ["условно-досрочное", "досрочное освобождение", "условно-досрочного"],
@@ -104,7 +101,15 @@ async def search_relevant_articles(session: AsyncSession, question: str, limit: 
     keywords = [k for k in keywords if len(k) > 3 and k not in {"подать", "получить", "иметь", "нужно"}]
     results = []
 
-    for doc_id in [1, 2]:
+    # Получаем ID и названия нужных документов из БД (не хардкодим [1, 2])
+    id_result = await session.execute(
+        select(Document.id, Document.title_ru).where(
+            Document.external_id.in_(["K1400000226", "K1400000234"])
+        )
+    )
+    doc_rows = id_result.all()  # list of Row(id, title_ru)
+
+    for doc_id, doc_title in doc_rows:
         version_result = await session.execute(
             select(DocumentVersion)
             .where(DocumentVersion.document_id == doc_id)
@@ -115,7 +120,6 @@ async def search_relevant_articles(session: AsyncSession, question: str, limit: 
         if not version:
             continue
 
-        doc = await session.get(Document, doc_id)
         text_content = version.normalized_text
         sentences = [p.strip() for p in text_content.split(". ") if len(p.strip()) > 80]
 
@@ -128,12 +132,12 @@ async def search_relevant_articles(session: AsyncSession, question: str, limit: 
                 if not any(kw in ["наркотики", "наркотических"] for kw in keywords):
                     score = 0
             if score > 0:
-                scored.append((score, sentence[:600]))
+                scored.append((score, sentence[:600], doc_title))
 
         scored.sort(reverse=True)
-        for score, text in scored[:3]:
+        for score, text, title in scored[:3]:
             results.append({
-                "doc_title": doc.title_ru,
+                "doc_title": title,
                 "text": text,
                 "score": score,
             })
@@ -144,31 +148,32 @@ async def search_relevant_articles(session: AsyncSession, question: str, limit: 
         if r["text"] not in seen:
             seen.add(r["text"])
             unique.append(r)
-# Принудительно ищем ключевые статьи для категории
-        category = classify_question(question)
-        if category in KEY_ARTICLES:
-            for doc_id in [1, 2]:
-                version_result = await session.execute(
-                    select(DocumentVersion)
-                    .where(DocumentVersion.document_id == doc_id)
-                    .order_by(DocumentVersion.id.desc())
-                    .limit(1)
-                )
-                version = version_result.scalar_one_or_none()
-                if not version:
-                    continue
-                doc = await session.get(Document, doc_id)
-                sentences = [p.strip() for p in version.normalized_text.split(". ") if len(p.strip()) > 80]
-                for marker in KEY_ARTICLES[category]:
-                    for sentence in sentences:
-                        if marker.lower() in sentence.lower() and sentence not in seen:
-                            seen.add(sentence)
-                            unique.insert(0, {
-                                "doc_title": doc.title_ru,
-                                "text": sentence[:600],
-                                "score": 10,
-                            })
-                            break
+
+    # Принудительно ищем ключевые статьи для категории (один раз, вне цикла дедупликации)
+    category = classify_question(question)
+    if category in KEY_ARTICLES:
+        for doc_id, doc_title in doc_rows:
+            version_result = await session.execute(
+                select(DocumentVersion)
+                .where(DocumentVersion.document_id == doc_id)
+                .order_by(DocumentVersion.id.desc())
+                .limit(1)
+            )
+            version = version_result.scalar_one_or_none()
+            if not version:
+                continue
+            sentences = [p.strip() for p in version.normalized_text.split(". ") if len(p.strip()) > 80]
+            for marker in KEY_ARTICLES[category]:
+                for sentence in sentences:
+                    if marker.lower() in sentence.lower() and sentence not in seen:
+                        seen.add(sentence)
+                        unique.insert(0, {
+                            "doc_title": doc_title,
+                            "text": sentence[:600],
+                            "score": 10,
+                        })
+                        break
+
     return unique[:limit]
 
 SYSTEM_PROMPT = """Ты — юридический помощник для осуждённых в учреждениях УИС Республики Казахстан.
@@ -207,7 +212,7 @@ async def answer_question(question: str) -> str:
 
     category = classify_question(question)
 
-    async with AsyncSessionLocal() as session:
+    async with async_session_maker() as session:
         articles = await search_relevant_articles(session, question)
 
         if not articles or max(a["score"] for a in articles) < 2:
@@ -233,7 +238,7 @@ async def answer_question(question: str) -> str:
 
 Ответь строго по формату. Если источников недостаточно — честно скажи об этом."""
 
-    return llm_chat(prompt)
+    return await asyncio.to_thread(llm_chat, prompt)
 
 async def main():
     questions = [
