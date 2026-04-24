@@ -19,7 +19,7 @@ _transcriber: WhisperTranscriber | None = None
 def get_transcriber() -> WhisperTranscriber:
     global _transcriber
     if _transcriber is None:
-        _transcriber = WhisperTranscriber(model_size="small")
+        _transcriber = WhisperTranscriber()
     return _transcriber
 
 
