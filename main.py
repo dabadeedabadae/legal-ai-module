@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from app.api.routes import router, verify_api_key
+from app.api.stt_routes import router as stt_router
 from app.services.rag.multi_agent import run_multi_agent
 from app.core.database import async_session_maker
 from app.core.config import settings
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(stt_router, prefix="/api/v1")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
