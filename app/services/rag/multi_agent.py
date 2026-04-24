@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from dotenv import load_dotenv
+from app.services.llm.client import is_kazakh
 load_dotenv()
 
 PROVIDER = os.getenv("LLM_PROVIDER", "groq")
@@ -68,13 +69,13 @@ SEARCHER_SYSTEM = """Ты помощник по поиску в законода
 LAWYER_SYSTEM = """Ты опытный юрист специализирующийся на уголовном праве РК.
 Дай точный юридический ответ со ссылкой на конкретную статью.
 Не придумывай нормы. Всегда указывай номер статьи.
-Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
+Если вопрос задан на казахском языке — отвечай на казахском. Если на русском — отвечай на русском. Никогда не используй другие языки."""
 
 SIMPLIFIER_SYSTEM = """Ты помощник который объясняет юридические тексты простым языком.
 Перепиши ответ так чтобы его понял человек без образования.
 Сохрани все важные детали и номера статей.
 Максимум 4-5 предложений.
-Отвечай ТОЛЬКО на русском языке. Никакого китайского, английского или других языков."""
+Если вопрос задан на казахском языке — отвечай на казахском. Если на русском — отвечай на русском. Никогда не используй другие языки."""
 
 async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
     result = {
@@ -85,6 +86,13 @@ async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
         "total_time": 0,
     }
     start_total = time.time()
+
+    lang = "kk" if is_kazakh(question) else "ru"
+    lang_directive = (
+        "Язык пользователя: казахский (kk). Отвечай ТОЛЬКО на казахском."
+        if lang == "kk"
+        else "Язык пользователя: русский (ru). Отвечай ТОЛЬКО на русском."
+    )
 
     def emit(agent_name, status, data=None):
         if emit_event:
@@ -105,13 +113,13 @@ async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
 
     # Агент 3: Юрист
     emit("lawyer", "started")
-    legal_answer, t3, s3 = await asyncio.to_thread(call_llm, 1, f"Вопрос: {question}\nНайденные статьи: {articles}\nТекст закона: {context[:1000]}", LAWYER_SYSTEM)
+    legal_answer, t3, s3 = await asyncio.to_thread(call_llm, 1, f"{lang_directive}\nВопрос: {question}\nНайденные статьи: {articles}\nТекст закона: {context[:1000]}", LAWYER_SYSTEM)
     emit("lawyer", "done", {"answer": legal_answer, "tokens": t3, "time": s3})
     result["agents"].append({"name": "Юрист", "output": legal_answer, "tokens": t3, "time": s3})
 
     # Агент 4: Упроститель
     emit("simplifier", "started")
-    simple_answer, t4, s4 = await asyncio.to_thread(call_llm, 0, f"Юридический ответ: {legal_answer}", SIMPLIFIER_SYSTEM)
+    simple_answer, t4, s4 = await asyncio.to_thread(call_llm, 0, f"{lang_directive}\nЮридический ответ: {legal_answer}", SIMPLIFIER_SYSTEM)
     emit("simplifier", "done", {"answer": simple_answer, "tokens": t4, "time": s4})
     result["agents"].append({"name": "Упроститель", "output": simple_answer, "tokens": t4, "time": s4})
 

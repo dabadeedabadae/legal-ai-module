@@ -1,6 +1,13 @@
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()
+
+_KAZAKH_LETTERS_RE = re.compile(r"[әіңғүұқөһӘІҢҒҮҰҚӨҺ]")
+
+
+def is_kazakh(text: str) -> bool:
+    return bool(_KAZAKH_LETTERS_RE.search(text or ""))
 
 PROVIDER = os.getenv("LLM_PROVIDER", "groq")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
