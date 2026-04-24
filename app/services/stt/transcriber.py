@@ -37,9 +37,23 @@ class WhisperTranscriber:
         self._initialized = True
 
     def transcribe(self, audio_bytes: bytes) -> tuple[str, str]:
+        print(f"[STT] audio_bytes size: {len(audio_bytes)} bytes")
+
+        debug_path = "/tmp/debug_audio.m4a"
+        try:
+            with open(debug_path, "wb") as f:
+                f.write(audio_bytes)
+            print(f"[STT] saved debug audio to {debug_path}")
+        except Exception as e:
+            print(f"[STT] failed to save debug audio: {e}")
+
         segments, info = self.model.transcribe(
             io.BytesIO(audio_bytes),
             beam_size=5,
         )
+        segments = list(segments)
+        print(f"[STT] segments count: {len(segments)}, detected language: {info.language}")
+
         text = "".join(seg.text for seg in segments).strip()
+        print(f"[STT] final text: {text!r}")
         return text, info.language
