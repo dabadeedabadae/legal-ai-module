@@ -40,7 +40,6 @@ class WhisperTranscriber:
         segments, info = self.model.transcribe(
             io.BytesIO(audio_bytes),
             beam_size=5,
-            vad_filter=True,
         )
         text = "".join(seg.text for seg in segments).strip()
         return text, info.language
