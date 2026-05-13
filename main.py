@@ -50,8 +50,11 @@ async def dashboard(request: Request):
     )
 
 @app.get("/admin")
-async def admin():
-    return FileResponse(os.path.join(static_dir, "admin.html"))
+async def admin(request: Request):
+    return templates.TemplateResponse(
+        "admin.html",
+        {"request": request, "active_page": "admin"},
+    )
 
 @app.get("/library")
 async def library(request: Request):
