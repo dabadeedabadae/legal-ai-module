@@ -56,6 +56,13 @@ async def admin(request: Request):
         {"request": request, "active_page": "admin"},
     )
 
+@app.get("/history")
+async def history_page(request: Request):
+    return templates.TemplateResponse(
+        "history.html",
+        {"request": request, "active_page": "history"},
+    )
+
 @app.get("/library")
 async def library(request: Request):
     v_old = aliased(DocumentVersion)
@@ -230,7 +237,15 @@ async def websocket_ask(websocket: WebSocket):
             def emit(event):
                 event_queue.put_nowait(event)
 
-            agent_task = asyncio.create_task(run_multi_agent(question, context, emit))
+            agent_task = asyncio.create_task(
+                run_multi_agent(
+                    question,
+                    context,
+                    emit,
+                    source="ws",
+                    ip_address=(websocket.client.host if websocket.client else None),
+                )
+            )
 
             while not agent_task.done():
                 try:

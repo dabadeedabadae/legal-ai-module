@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}История запросов — Legal AI{% endblock %}
+{% block topbar_title %}История запросов{% endblock %}
+{% block topbar_right %}
+  <span id="total-count" style="color: var(--text-muted);">—</span>
+{% endblock %}
+
+{% block extra_styles %}
+.filters {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: end;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.filter-input, .filter-select {
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; outline: none; min-width: 130px;
+}
+.filter-input:focus, .filter-select:focus { border-color: var(--accent); }
+.filter-btn {
+  padding: 8px 14px; background: var(--accent); color: white;
+  border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500;
+}
+.filter-btn:hover { background: var(--accent-soft); }
+.filter-btn.secondary { background: transparent; color: var(--text-soft); border: 1px solid var(--border); }
+.filter-btn.secondary:hover { background: var(--bg-elev-2); }
+
+.table-wrap {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+table.history { width: 100%; border-collapse: collapse; }
+.history thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600;
+  padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg-elev-2);
+}
+.history tbody tr.row {
+  border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
+}
+.history tbody tr.row:hover { background: var(--bg-elev-2); }
+.history tbody tr.row.open { background: rgba(99, 102, 241, 0.10); }
+.history tbody td { padding: 11px 14px; font-size: 13px; color: var(--text); vertical-align: top; }
+.history td.q { color: var(--text-soft); max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history td.dt { white-space: nowrap; color: var(--text-muted); font-size: 12px; }
+.badge { display: inline-block; font-size: 10px; padding: 3px 8px; border-radius: 999px; font-weight: 600; letter-spacing: 0.2px; }
+.badge-src-flutter { background: rgba(96, 165, 250, 0.18); color: #93c5fd; }
+.badge-src-web     { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
+.badge-src-api     { background: rgba(74, 222, 128, 0.18); color: #86efac; }
+.badge-src-ws      { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.badge-src-other   { background: rgba(255, 255, 255, 0.08); color: var(--text-soft); }
+.badge-lang { background: var(--bg-elev-2); color: var(--text-soft); border: 1px solid var(--border); }
+
+.detail-row td { padding: 0 14px 14px 14px; background: var(--bg-elev-2); border-bottom: 1px solid var(--border); }
+.detail-card { padding: 14px; }
+.detail-section { margin-bottom: 14px; }
+.detail-section h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+.detail-section .text { font-size: 13px; line-height: 1.55; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.detail-section .text.answer { color: var(--text-soft); }
+
+.agents { display: flex; flex-direction: column; gap: 8px; }
+.agent-box { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.agent-head { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--bg-elev-2); }
+.agent-num { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text); }
+.agent-name { font-size: 13px; font-weight: 600; }
+.agent-stat { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+.agent-body { padding: 10px 12px; font-size: 12.5px; line-height: 1.55; color: var(--text-soft); white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; }
+
+.empty, .loading { padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+.pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
+.pagination button {
+  background: var(--bg-elev); border: 1px solid var(--border); color: var(--text-soft);
+  padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer;
+}
+.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination .page-info { font-size: 12px; color: var(--text-muted); }
+
+@media (max-width: 720px) {
+  .history thead th.hide-mobile, .history td.hide-mobile { display: none; }
+  .history td.q { max-width: 240px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="filters">
+  <div class="filter-group">
+    <label class="filter-label">Источник</label>
+    <select class="filter-select" id="f-source">
+      <option value="">Все</option>
+      <option value="flutter">Flutter</option>
+      <option value="web">Web</option>
+      <option value="api">API</option>
+      <option value="ws">WebSocket</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Язык</label>
+    <select class="filter-select" id="f-language">
+      <option value="">Все</option>
+      <option value="ru">RU</option>
+      <option value="kk">KK</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Дата с</label>
+    <input class="filter-input" type="date" id="f-date-from">
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Дата по</label>
+    <input class="filter-input" type="date" id="f-date-to">
+  </div>
+  <button class="filter-btn" onclick="applyFilters()">Применить</button>
+  <button class="filter-btn secondary" onclick="resetFilters()">Сброс</button>
+</div>
+
+<div class="table-wrap">
+  <table class="history">
+    <thead>
+      <tr>
+        <th style="width: 170px;">Дата</th>
+        <th>Вопрос</th>
+        <th style="width: 80px;" class="hide-mobile">Язык</th>
+        <th style="width: 110px;">Источник</th>
+      </tr>
+    </thead>
+    <tbody id="history-body">
+      <tr><td colspan="4" class="loading">Загрузка...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination">
+  <button id="prev-btn" onclick="goPage(-1)">← Назад</button>
+  <span class="page-info" id="page-info">—</span>
+  <button id="next-btn" onclick="goPage(1)">Вперёд →</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let state = { page: 1, pages: 1, total: 0, openId: null };
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function srcClass(src) {
+  if (src === "flutter") return "badge-src-flutter";
+  if (src === "web")     return "badge-src-web";
+  if (src === "api")     return "badge-src-api";
+  if (src === "ws")      return "badge-src-ws";
+  return "badge-src-other";
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function truncate(s, n) {
+  s = String(s || "");
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+
+function buildQS() {
+  const p = new URLSearchParams();
+  p.set("page", state.page);
+  const src = document.getElementById("f-source").value;
+  const lang = document.getElementById("f-language").value;
+  const df = document.getElementById("f-date-from").value;
+  const dt = document.getElementById("f-date-to").value;
+  if (src) p.set("source", src);
+  if (lang) p.set("language", lang);
+  if (df) p.set("date_from", df);
+  if (dt) p.set("date_to", dt);
+  return p.toString();
+}
+
+async function load() {
+  const body = document.getElementById("history-body");
+  body.innerHTML = '<tr><td colspan="4" class="loading">Загрузка...</td></tr>';
+  try {
+    const res = await fetch(`/api/v1/history?${buildQS()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="4" class="empty">Ошибка загрузки: ${esc(e.message)}</td></tr>`;
+    document.getElementById("total-count").textContent = "—";
+  }
+}
+
+function render(data) {
+  state.pages = data.pages || 1;
+  state.total = data.total || 0;
+  document.getElementById("total-count").textContent = `Всего: ${state.total}`;
+  document.getElementById("page-info").textContent = `Страница ${data.page} из ${state.pages}`;
+  document.getElementById("prev-btn").disabled = data.page <= 1;
+  document.getElementById("next-btn").disabled = data.page >= state.pages;
+
+  const body = document.getElementById("history-body");
+  if (!data.items.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty">Записей не найдено.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = data.items.map(item => {
+    const isOpen = state.openId === item.id;
+    return `
+      <tr class="row ${isOpen ? "open" : ""}" onclick="toggleRow('${item.id}')">
+        <td class="dt">${esc(fmtDate(item.created_at))}</td>
+        <td class="q">${esc(truncate(item.question, 140))}</td>
+        <td class="hide-mobile"><span class="badge badge-lang">${esc((item.language || "").toUpperCase())}</span></td>
+        <td><span class="badge ${srcClass(item.source)}">${esc(item.source || "—")}</span></td>
+      </tr>
+      ${isOpen ? `<tr class="detail-row"><td colspan="4">${renderDetail(item)}</td></tr>` : ""}
+    `;
+  }).join("");
+}
+
+function renderDetail(item) {
+  const logs = Array.isArray(item.agent_logs) ? item.agent_logs : [];
+  const agentColors = {
+    "Классификатор": "rgba(167, 139, 250, 0.25)",
+    "Поисковик":     "rgba(96, 165, 250, 0.25)",
+    "Юрист":         "rgba(245, 158, 11, 0.25)",
+    "Упроститель":   "rgba(74, 222, 128, 0.25)",
+  };
+
+  const agentsHtml = logs.length
+    ? `<div class="agents">${logs.map((a, i) => {
+        const bg = agentColors[a.name] || "var(--bg-elev-2)";
+        const stat = [
+          a.time != null ? `⏱ ${a.time}s` : null,
+          a.tokens != null ? `🪙 ${a.tokens}` : null,
+        ].filter(Boolean).join(" · ");
+        const body = a.output != null ? a.output : JSON.stringify(a, null, 2);
+        return `
+          <div class="agent-box">
+            <div class="agent-head">
+              <div class="agent-num" style="background: ${bg};">${i+1}</div>
+              <div class="agent-name">${esc(a.name || "agent")}</div>
+              <div class="agent-stat">${esc(stat)}</div>
+            </div>
+            <div class="agent-body">${esc(body)}</div>
+          </div>`;
+      }).join("")}</div>`
+    : '<div class="empty" style="padding: 12px;">Логи агентов отсутствуют.</div>';
+
+  return `
+    <div class="detail-card">
+      <div class="detail-section">
+        <h4>Полный вопрос</h4>
+        <div class="text">${esc(item.question || "")}</div>
+      </div>
+      <div class="detail-section">
+        <h4>Итоговый ответ</h4>
+        <div class="text answer">${esc(item.answer || "—")}</div>
+      </div>
+      <div class="detail-section">
+        <h4>Логи агентов</h4>
+        ${agentsHtml}
+      </div>
+      <div class="detail-section" style="margin-bottom: 0;">
+        <h4>Метаданные</h4>
+        <div class="text" style="color: var(--text-muted); font-size: 12px;">
+          id: ${esc(item.id)} · ip: ${esc(item.ip_address || "—")} · created: ${esc(item.created_at || "—")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleRow(id) {
+  state.openId = (state.openId === id) ? null : id;
+  load();
+}
+
+function goPage(delta) {
+  const next = state.page + delta;
+  if (next < 1 || next > state.pages) return;
+  state.page = next;
+  state.openId = null;
+  load();
+}
+
+function applyFilters() {
+  state.page = 1;
+  state.openId = null;
+  load();
+}
+
+function resetFilters() {
+  document.getElementById("f-source").value = "";
+  document.getElementById("f-language").value = "";
+  document.getElementById("f-date-from").value = "";
+  document.getElementById("f-date-to").value = "";
+  applyFilters();
+}
+
+load();
+</script>
+{% endblock %}

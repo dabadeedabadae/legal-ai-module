@@ -114,7 +114,14 @@ SIMPLIFIER_SYSTEM = """Ты — финальный редактор ответа
 - Объём — компактный: короткий ответ + 3–6 строк деталей + финальная строка.
 - Язык: если вопрос на казахском — отвечай ТОЛЬКО на казахском, если на русском — ТОЛЬКО на русском."""
 
-async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
+async def run_multi_agent(
+    question: str,
+    context: str,
+    emit_event=None,
+    *,
+    source: str = "api",
+    ip_address: str | None = None,
+) -> dict:
     result = {
         "question": question,
         "agents": [],
@@ -168,4 +175,18 @@ async def run_multi_agent(question: str, context: str, emit_event=None) -> dict:
     result["final_answer"] = simple_answer
     result["total_tokens"] = t1 + t2 + t3 + t4
     result["total_time"] = round(time.time() - start_total, 2)
+
+    try:
+        from app.core.db_query_log import save_query_log
+        await save_query_log(
+            question=question,
+            answer=simple_answer,
+            agent_logs=result["agents"],
+            language=lang,
+            source=source,
+            ip_address=ip_address,
+        )
+    except Exception:
+        pass
+
     return result

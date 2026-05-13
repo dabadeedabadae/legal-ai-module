@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.core.database import Base
 from app.models.document import Document, DocumentVersion, DocumentDiff
+from app.models.query_log import QueryLog
 
 config = context.config
 if config.config_file_name is not None:
