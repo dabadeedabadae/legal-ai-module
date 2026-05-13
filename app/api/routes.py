@@ -1,13 +1,14 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.document import Document, DocumentVersion, DocumentDiff
-from app.services.rag.qa_service import answer_question, search_relevant_articles
+from app.services.rag.qa_service import search_relevant_articles
 from app.services.rag.multi_agent import run_multi_agent
 from app.core.database import async_session_maker
+from app.core.query_log import save_query
 import hmac
 import json
 import os
@@ -23,6 +24,55 @@ def verify_api_key(x_api_key: str = Header(...)):
 class QuestionRequest(BaseModel):
     question: str
     user_id: int | None = None
+
+
+async def _build_context(question: str) -> tuple[str, bool]:
+    try:
+        async with async_session_maker() as session:
+            articles = await search_relevant_articles(session, question)
+            return "\n\n".join([a["text"] for a in articles]), True
+    except Exception:
+        return "", False
+
+
+async def _ask_with_agents(request: QuestionRequest, source: str) -> dict:
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    context, db_available = await _build_context(request.question)
+
+    try:
+        result = await run_multi_agent(request.question, context)
+    except Exception as exc:
+        save_query(
+            question=request.question,
+            result={"agents": [], "final_answer": "", "total_tokens": 0, "total_time": 0},
+            db_available=db_available,
+            source=source,
+            user_id=request.user_id,
+            error=str(exc),
+        )
+        raise HTTPException(status_code=502, detail=f"Agent pipeline failed: {exc}")
+
+    query_id = save_query(
+        question=request.question,
+        result=result,
+        db_available=db_available,
+        source=source,
+        user_id=request.user_id,
+    )
+
+    return {
+        "question": request.question,
+        "answer": result["final_answer"],
+        "user_id": request.user_id,
+        "total_tokens": result["total_tokens"],
+        "total_time": result["total_time"],
+        "agents": result["agents"],
+        "query_id": query_id,
+        "db_available": db_available,
+    }
+
 
 @router.get("/documents")
 async def list_documents(db: AsyncSession = Depends(get_db), _=Depends(verify_api_key)):
@@ -70,44 +120,12 @@ async def get_important_changes(db: AsyncSession = Depends(get_db), _=Depends(ve
 
 @router.post("/ask")
 async def ask_question(request: QuestionRequest, _=Depends(verify_api_key)):
-    if not request.question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
-    answer = await answer_question(request.question)
-    return {
-        "question": request.question,
-        "answer": answer,
-        "user_id": request.user_id,
-    }
+    return await _ask_with_agents(request, source="api")
 
 @router.post("/ui/ask", include_in_schema=False)
 async def ask_question_ui(request: QuestionRequest, _=Depends(verify_api_key)):
-    """Endpoint for the local web UI."""
-    if not request.question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
-    answer = await answer_question(request.question)
-    return {
-        "question": request.question,
-        "answer": answer,
-        "user_id": request.user_id,
-    }
+    return await _ask_with_agents(request, source="ui")
 
 @router.post("/ask/multi")
 async def ask_question_multi(request: QuestionRequest, _=Depends(verify_api_key)):
-    if not request.question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
-
-    context = ""
-    try:
-        async with async_session_maker() as session:
-            articles = await search_relevant_articles(session, request.question)
-            context = "\n\n".join([a["text"] for a in articles])
-    except Exception:
-        pass
-
-    result = await run_multi_agent(request.question, context)
-
-    return {
-        "question": request.question,
-        "answer": result["final_answer"],
-        "total_time": result["total_time"],
-    }
+    return await _ask_with_agents(request, source="api-multi")

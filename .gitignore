@@ -4,3 +4,5 @@ __pycache__/
 .env
 migrations/versions/
 *.db
+data/query_history.jsonl
+data/query_history.jsonl.tmp

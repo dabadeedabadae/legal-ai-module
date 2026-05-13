@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Библиотека изменений — Legal AI{% endblock %}
+{% block topbar_title %}Библиотека изменений законов{% endblock %}
+{% block topbar_right %}
+  <span>Документов: <strong style="color: var(--text)">{{ documents|length }}</strong></span>
+  <span>Изменений: <strong style="color: var(--text)">{{ total_diffs }}</strong></span>
+{% endblock %}
+
+{% block extra_styles %}
+.docs { display: flex; flex-direction: column; gap: 28px; }
+.doc-block { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+.doc-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.doc-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.doc-meta { font-size: 12px; color: var(--text-muted); }
+.doc-meta a { color: var(--accent); text-decoration: none; }
+.doc-meta a:hover { text-decoration: underline; }
+
+.empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; font-style: italic; }
+
+.diff-list { display: flex; flex-direction: column; gap: 12px; }
+.diff-card { background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.diff-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.diff-date { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.diff-date .arrow { color: var(--text-muted); }
+.badge { display: inline-block; font-size: 11px; padding: 4px 10px; border-radius: 999px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
+.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-red { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
+.diff-summary { font-size: 14px; line-height: 1.55; color: var(--text-soft); margin: 4px 0 10px 0; }
+.diff-summary.muted { color: var(--text-muted); font-style: italic; }
+
+.diff-stats { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; flex-wrap: wrap; }
+.diff-stats .stat-added { color: var(--green); }
+.diff-stats .stat-removed { color: var(--red); }
+
+.toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn:hover { background: var(--bg-elev); color: var(--text); border-color: var(--accent); }
+
+.diff-details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.diff-details.open { display: block; }
+.diff-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.diff-col h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.diff-col.added h4 { color: var(--green); }
+.diff-col.removed h4 { color: var(--red); }
+.diff-items { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+.diff-item { font-size: 12.5px; line-height: 1.5; padding: 8px 10px; border-radius: 6px; background: var(--bg-elev); border-left: 3px solid; word-break: break-word; white-space: pre-wrap; }
+.diff-item.added { border-left-color: var(--green); }
+.diff-item.removed { border-left-color: var(--red); }
+.diff-col .empty-col { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 8px 4px; }
+
+.raw-json { margin-top: 12px; }
+.raw-json summary { cursor: pointer; font-size: 11px; color: var(--text-muted); user-select: none; }
+.raw-json summary:hover { color: var(--text-soft); }
+.raw-json pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 11px; color: var(--text-soft); margin-top: 8px; overflow-x: auto; max-height: 280px; }
+
+@media (max-width: 640px) {
+  .diff-cols { grid-template-columns: 1fr; }
+  .doc-block { padding: 14px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="docs">
+  {% for doc in documents %}
+    <section class="doc-block">
+      <div class="doc-header">
+        <div>
+          <div class="doc-title">{{ doc.title_ru }}</div>
+          <div class="doc-meta">
+            Категория: {{ doc.category }} ·
+            Изменений: {{ doc.diffs|length }}
+            {% if doc.url %} · <a href="{{ doc.url }}" target="_blank" rel="noopener">источник</a>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if doc.diffs %}
+        <div class="diff-list">
+          {% for diff in doc.diffs %}
+            <article class="diff-card" data-diff-id="{{ diff.id }}">
+              <div class="diff-top">
+                <div class="diff-date">
+                  <span>{{ diff.date_new }}</span>
+                  <span class="arrow">←</span>
+                  <span style="color: var(--text-muted); font-weight: 500;">{{ diff.date_old }}</span>
+                </div>
+                {% if diff.affects_sentence %}
+                  <span class="badge badge-red">Влияет на срок</span>
+                {% else %}
+                  <span class="badge badge-green">Не влияет на срок</span>
+                {% endif %}
+              </div>
+
+              {% if diff.ai_summary_ru %}
+                <div class="diff-summary">{{ diff.ai_summary_ru }}</div>
+              {% else %}
+                <div class="diff-summary muted">Анализ не выполнен</div>
+              {% endif %}
+
+              <div class="diff-stats">
+                <span>Всего изменений: <strong>{{ diff.total_changes }}</strong></span>
+                <span class="stat-added">+{{ diff.added_chars }} симв.</span>
+                <span class="stat-removed">−{{ diff.removed_chars }} симв.</span>
+              </div>
+
+              <button type="button" class="toggle-btn" onclick="toggleDiff('d{{ diff.id }}', this)">Подробнее</button>
+
+              <div class="diff-details" id="d{{ diff.id }}">
+                <div class="diff-cols">
+                  <div class="diff-col added">
+                    <h4>Добавлено ({{ diff.added|length }})</h4>
+                    {% if diff.added %}
+                      <div class="diff-items">
+                        {% for chunk in diff.added %}
+                          <div class="diff-item added">+ {{ chunk }}</div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="empty-col">Нет добавлений</div>
+                    {% endif %}
+                  </div>
+                  <div class="diff-col removed">
+                    <h4>Удалено ({{ diff.removed|length }})</h4>
+                    {% if diff.removed %}
+                      <div class="diff-items">
+                        {% for chunk in diff.removed %}
+                          <div class="diff-item removed">− {{ chunk }}</div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="empty-col">Нет удалений</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <details class="raw-json">
+                  <summary>Сырой diff_json</summary>
+                  <pre>{{ diff.raw_json }}</pre>
+                </details>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">Изменения по этому документу пока не зафиксированы.</div>
+      {% endif %}
+    </section>
+  {% else %}
+    <div class="doc-block">
+      <div class="empty">В базе нет документов.</div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDiff(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.classList.toggle("open");
+  btn.textContent = open ? "Скрыть" : "Подробнее";
+}
+</script>
+{% endblock %}

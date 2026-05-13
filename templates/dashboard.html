@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Legal AI{% endblock %}
+{% block topbar_title %}Мониторинг агентов{% endblock %}
+{% block topbar_right %}
+  <span class="status"><span class="dot"></span><span id="conn-status">Подкл...</span></span>
+{% endblock %}
+
+{% block extra_styles %}
+.status { display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+.ask-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.ask-row input {
+  flex: 1; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-elev); color: var(--text);
+  font-size: 14px; outline: none; min-width: 0;
+}
+.ask-row input::placeholder { color: var(--text-muted); }
+.ask-row input:focus { border-color: var(--accent); }
+.ask-row button {
+  padding: 10px 18px; background: var(--accent); color: white; border: none;
+  border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;
+  white-space: nowrap; flex-shrink: 0;
+}
+.ask-row button:hover { background: var(--accent-soft); }
+.ask-row button:disabled { background: #3a3f55; color: var(--text-muted); cursor: not-allowed; }
+
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.metric { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 600; color: var(--text); }
+
+.keys-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.key-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.key-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.key-bar-bg { height: 4px; background: var(--bg-elev-2); border-radius: 2px; margin: 4px 0; }
+.key-bar { height: 4px; border-radius: 2px; transition: width 0.5s; }
+.key-stats { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+
+.panel { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.panel-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+
+.agents-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.agent-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; transition: all 0.3s; background: var(--bg-elev-2); }
+.agent-card.pending { opacity: 0.85; }
+.agent-card.active { background: rgba(99, 102, 241, 0.12); border-color: var(--accent); }
+.agent-card.done { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.4); }
+.agent-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 7px; color: var(--text); font-weight: 700; }
+.agent-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.agent-desc { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
+.agent-status { font-size: 11px; font-weight: 500; color: var(--text-soft); }
+.agent-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+.agent-output { font-size: 10px; color: var(--text-soft); margin-top: 5px; background: var(--bg); border-radius: 4px; padding: 5px 7px; border: 1px solid var(--border); max-height: 55px; overflow: hidden; line-height: 1.5; }
+
+.answer-box { background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; padding: 14px; font-size: 14px; line-height: 1.7; color: #b6f0c8; margin-top: 12px; }
+
+.log { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; max-height: 220px; overflow-y: auto; }
+.log-line { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.log-time { color: var(--text-muted); min-width: 60px; flex-shrink: 0; }
+.log-agent { font-weight: 600; min-width: 100px; flex-shrink: 0; }
+.log-msg { color: var(--text-soft); }
+
+@media (max-width: 860px) {
+  .ask-row { flex-direction: column; }
+  .ask-row button { width: 100%; }
+  .metrics { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .metric-value { font-size: 20px; }
+  .keys-row { grid-template-columns: 1fr; gap: 8px; }
+  .agents-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .agent-desc { display: none; }
+  .panel { padding: 12px; }
+  .panel-title { font-size: 13px; margin-bottom: 10px; }
+  .log-agent { min-width: 70px; }
+}
+@media (max-width: 380px) {
+  .agents-grid { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="ask-row">
+  <input type="text" id="question-input" placeholder="Введите вопрос..." value="Когда я могу подать на УДО?">
+  <button id="ask-btn" onclick="askQuestion()">Отправить</button>
+</div>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-label">Вопросов</div><div class="metric-value" id="m-total">0</div></div>
+  <div class="metric"><div class="metric-label">Среднее время</div><div class="metric-value" id="m-avg">—</div></div>
+  <div class="metric"><div class="metric-label">Токенов</div><div class="metric-value" id="m-tokens">0</div></div>
+  <div class="metric"><div class="metric-label">Активных</div><div class="metric-value" id="m-active">0</div></div>
+</div>
+
+<div class="keys-row">
+  <div class="key-card">
+    <div class="key-label">Агент 1 — Классификатор + Упроститель</div>
+    <div class="key-bar-bg"><div class="key-bar" id="bar1" style="width:0%;background:#a78bfa;"></div></div>
+    <div class="key-stats"><span id="k1">0 токенов</span><span>100K / день</span></div>
+  </div>
+  <div class="key-card">
+    <div class="key-label">Агент 2 — Поисковик + Юрист</div>
+    <div class="key-bar-bg"><div class="key-bar" id="bar2" style="width:0%;background:#60a5fa;"></div></div>
+    <div class="key-stats"><span id="k2">0 токенов</span><span>100K / день</span></div>
+  </div>
+  <div class="key-card">
+    <div class="key-label">Агент 3 — Резервный</div>
+    <div class="key-bar-bg"><div class="key-bar" id="bar3" style="width:0%;background:#4ade80;"></div></div>
+    <div class="key-stats"><span id="k3">0 токенов</span><span>100K / день</span></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Агенты</div>
+  <div class="agents-grid">
+    <div class="agent-card pending" id="card-classifier">
+      <div class="agent-icon" style="background:rgba(167, 139, 250, 0.25);">1</div>
+      <div class="agent-name" style="color:#c4b5fd;">Классификатор</div>
+      <div class="agent-desc">Определяет тему вопроса</div>
+      <div class="agent-status" id="st-classifier">ожидание</div>
+      <div class="agent-time" id="tm-classifier"></div>
+      <div class="agent-output" id="out-classifier" style="display:none;"></div>
+    </div>
+    <div class="agent-card pending" id="card-searcher">
+      <div class="agent-icon" style="background:rgba(96, 165, 250, 0.25);">2</div>
+      <div class="agent-name" style="color:#93c5fd;">Поисковик</div>
+      <div class="agent-desc">Находит статьи закона</div>
+      <div class="agent-status" id="st-searcher">ожидание</div>
+      <div class="agent-time" id="tm-searcher"></div>
+      <div class="agent-output" id="out-searcher" style="display:none;"></div>
+    </div>
+    <div class="agent-card pending" id="card-lawyer">
+      <div class="agent-icon" style="background:rgba(245, 158, 11, 0.25);">3</div>
+      <div class="agent-name" style="color:#fcd34d;">Юрист</div>
+      <div class="agent-desc">Формулирует точный ответ</div>
+      <div class="agent-status" id="st-lawyer">ожидание</div>
+      <div class="agent-time" id="tm-lawyer"></div>
+      <div class="agent-output" id="out-lawyer" style="display:none;"></div>
+    </div>
+    <div class="agent-card pending" id="card-simplifier">
+      <div class="agent-icon" style="background:rgba(74, 222, 128, 0.25);">4</div>
+      <div class="agent-name" style="color:#86efac;">Упроститель</div>
+      <div class="agent-desc">Переводит на простой язык</div>
+      <div class="agent-status" id="st-simplifier">ожидание</div>
+      <div class="agent-time" id="tm-simplifier"></div>
+      <div class="agent-output" id="out-simplifier" style="display:none;"></div>
+    </div>
+  </div>
+  <div id="final-answer" style="display:none;"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Лог агентов</div>
+  <div class="log" id="log"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ws, totalQ=0, totalTokens=0, times=[], k1t=0, k2t=0;
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws/ask`);
+  ws.onopen = () => document.getElementById("conn-status").textContent = "Онлайн";
+  ws.onclose = () => { document.getElementById("conn-status").textContent = "Офлайн"; setTimeout(connect, 3000); };
+  ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+}
+
+function now() {
+  return new Date().toTimeString().slice(0,8);
+}
+
+function addLog(agent, color, msg) {
+  const log = document.getElementById("log");
+  log.innerHTML += `<div class="log-line"><span class="log-time">${now()}</span><span class="log-agent" style="color:${color}">${agent}</span><span class="log-msg">${msg}</span></div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function setAgent(id, state, status, time, output) {
+  document.getElementById("card-"+id).className = "agent-card " + state;
+  document.getElementById("st-"+id).textContent = status;
+  if (time) document.getElementById("tm-"+id).textContent = time + "s";
+  if (output) {
+    const out = document.getElementById("out-"+id);
+    out.style.display = "block";
+    out.textContent = output.slice(0,100);
+  }
+}
+
+const colors = { classifier:"#c4b5fd", searcher:"#93c5fd", lawyer:"#fcd34d", simplifier:"#86efac" };
+const names  = { classifier:"Классификатор", searcher:"Поисковик", lawyer:"Юрист", simplifier:"Упроститель" };
+
+function handleEvent(data) {
+  if (data.error) { addLog("Система", "#ef4444", data.error); return; }
+
+  if (data.agent) {
+    const c = colors[data.agent], n = names[data.agent];
+    if (data.status === "started") {
+      setAgent(data.agent, "active", "работает...", null, null);
+      addLog(n, c, "Начинаю работу...");
+    } else if (data.status === "done") {
+      const d = data.data;
+      setAgent(data.agent, "done", "готово ✓", d.time, d.category || d.articles || d.answer || "");
+      addLog(n, c, `Завершено за ${d.time}s, токенов: ${d.tokens}`);
+      if (data.agent === "classifier" || data.agent === "simplifier") k1t += d.tokens;
+      else k2t += d.tokens;
+      updateKeys();
+    }
+  }
+
+  if (data.type === "complete") {
+    const r = data.result;
+    totalQ++; totalTokens += r.total_tokens; times.push(r.total_time);
+    document.getElementById("m-total").textContent = totalQ;
+    document.getElementById("m-tokens").textContent = totalTokens.toLocaleString();
+    document.getElementById("m-avg").textContent = (times.reduce((a,b)=>a+b,0)/times.length).toFixed(1)+"s";
+    document.getElementById("m-active").textContent = 0;
+    document.getElementById("ask-btn").disabled = false;
+    document.getElementById("ask-btn").textContent = "Отправить";
+    const fa = document.getElementById("final-answer");
+    fa.style.display = "block";
+    fa.innerHTML = `<div class="answer-box"><strong>Итоговый ответ:</strong><br>${r.final_answer}</div>`;
+    addLog("Система", "#22c55e", `Готово за ${r.total_time}s, токенов: ${r.total_tokens}`);
+  }
+}
+
+function updateKeys() {
+  document.getElementById("k1").textContent = k1t.toLocaleString() + " токенов";
+  document.getElementById("k2").textContent = k2t.toLocaleString() + " токенов";
+  document.getElementById("bar1").style.width = Math.min(100, k1t/1000).toFixed(1)+"%";
+  document.getElementById("bar2").style.width = Math.min(100, k2t/1000).toFixed(1)+"%";
+}
+
+function resetAgents() {
+  ["classifier","searcher","lawyer","simplifier"].forEach(id => {
+    setAgent(id, "pending", "ожидание", null, null);
+    document.getElementById("out-"+id).style.display = "none";
+  });
+  document.getElementById("final-answer").style.display = "none";
+  document.getElementById("log").innerHTML = "";
+}
+
+function askQuestion() {
+  const q = document.getElementById("question-input").value.trim();
+  if (!q || !ws) return;
+  resetAgents();
+  document.getElementById("ask-btn").disabled = true;
+  document.getElementById("ask-btn").textContent = "Обработка...";
+  document.getElementById("m-active").textContent = 1;
+  ws.send(JSON.stringify({ question: q }));
+}
+
+document.getElementById("question-input").addEventListener("keypress", e => {
+  if (e.key === "Enter") askQuestion();
+});
+
+connect();
+</script>
+{% endblock %}
